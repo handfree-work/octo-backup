@@ -15,6 +15,7 @@ import (
 func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
 	app := fiber.New()
 	app.Use(recover.New())
+	SwaggerHandlersRegister(app)
 	UserHandlersRegister(app, svcCtx)
 	return app
 }
@@ -32,6 +33,17 @@ func UserHandlersRegister(app *fiber.App, svcCtx *svc.ServiceContext) {
 	users.Delete("/:id", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
 }
 
+// registerUser godoc
+// @Summary 注册用户
+// @Description 注册首个用户会自动授予 admin 角色，后续注册用户为 read 角色。
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body logic.CreateUserInput true "注册信息"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Router /api/auth/register [post]
 func registerUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var input logic.CreateUserInput
@@ -46,6 +58,17 @@ func registerUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// loginUser godoc
+// @Summary 用户登录
+// @Description 登录成功后返回有效期默认 7 天的 JWT Bearer token。
+// @Tags 认证
+// @Accept json
+// @Produce json
+// @Param request body logic.LoginInput true "登录信息"
+// @Success 200 {object} LoginResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Router /api/auth/login [post]
 func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var input logic.LoginInput
@@ -71,6 +94,20 @@ func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// createUser godoc
+// @Summary 创建用户
+// @Description 需要 admin 权限，可设置 admin、write 或 read 角色。
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security bearerAuth
+// @Param request body logic.CreateUserInput true "用户信息"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 409 {object} ErrorResponse
+// @Router /api/users [post]
 func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var input logic.CreateUserInput
@@ -85,6 +122,16 @@ func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// listUsers godoc
+// @Summary 获取用户列表
+// @Description 需要 read、write 或 admin 权限。
+// @Tags 用户
+// @Produce json
+// @Security bearerAuth
+// @Success 200 {object} UserListResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Router /api/users [get]
 func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		users, err := logic.NewUserService(c.Context(), svcCtx).List()
@@ -95,6 +142,19 @@ func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// getUser godoc
+// @Summary 获取用户详情
+// @Description 需要 read、write 或 admin 权限。
+// @Tags 用户
+// @Produce json
+// @Security bearerAuth
+// @Param id path int true "用户 ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/users/{id} [get]
 func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)
@@ -109,6 +169,21 @@ func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// updateUser godoc
+// @Summary 更新用户
+// @Description 需要 write 或 admin 权限；非管理员只能更新自己的资料且不能修改角色。
+// @Tags 用户
+// @Accept json
+// @Produce json
+// @Security bearerAuth
+// @Param id path int true "用户 ID"
+// @Param request body logic.UpdateUserInput true "更新信息"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/users/{id} [put]
 func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)
@@ -137,6 +212,19 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	}
 }
 
+// deleteUser godoc
+// @Summary 删除用户
+// @Description 需要 admin 权限。
+// @Tags 用户
+// @Produce json
+// @Security bearerAuth
+// @Param id path int true "用户 ID"
+// @Success 204
+// @Failure 400 {object} ErrorResponse
+// @Failure 401 {object} ErrorResponse
+// @Failure 403 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Router /api/users/{id} [delete]
 func deleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)

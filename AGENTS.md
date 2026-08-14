@@ -30,6 +30,11 @@
 - JWT 默认有效期为 7 天；生产环境通过 `JWT_SECRET` 提供密钥，不在代码中硬编码生产密钥。
 - 前端登录与注册直接调用 `/api/auth/login`、`/api/auth/register`，并按后端 `{ data: ... }` 响应保存 JWT 和用户角色；开发代理必须保留 `/api` 前缀。
 
+## API 文档
+
+- 后端 Swagger UI 固定提供在 `/swagger/`，OpenAPI JSON 固定提供在 `/swagger/doc.json`。
+- 新增或变更后端接口时，同步维护 handler 的 Swagger 注释并在 `backend` 目录执行 `swag init --generalInfo app.go --output docs --parseInternal`，提交生成的 `docs/` 文件。
+
 ## 规范回顾
 
 - 每次任务收尾时，回顾用户提出的要求，识别其中可跨任务复用、稳定且不与既有规范冲突的约束。

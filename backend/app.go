@@ -19,6 +19,17 @@ import (
 	"go.uber.org/zap"
 )
 
+// @title Web Restic API
+// @version 1.0
+// @description Web Restic 的认证与用户管理 API。
+// @host localhost:3000
+// @BasePath /
+// @schemes http
+// @securityDefinitions.apikey bearerAuth
+// @in header
+// @name Authorization
+// @description 输入 JWT，格式为 "Bearer {token}"。
+
 var (
 	port      = flag.String("port", "", "覆盖配置中的监听地址")
 	mode      = flag.String("mode", getenv("APP_MODE", "dev"), "运行模式")
@@ -76,6 +87,7 @@ func main() {
 	app := fiber.New()
 	app.Use(recover.New())
 	app.Use(log_.HTTPMiddleware())
+	handler.SwaggerHandlersRegister(app)
 	handler.UserHandlersRegister(app, &svc.ServiceContext{Db: database, Auth: authConfig})
 	app.Get("/*", static.New("./static/public"))
 

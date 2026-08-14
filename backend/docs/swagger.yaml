@@ -1,0 +1,320 @@
+basePath: /
+definitions:
+  handler.ErrorResponse:
+    properties:
+      error:
+        example: 没有访问权限
+        type: string
+    type: object
+  handler.LoginResponse:
+    properties:
+      data:
+        properties:
+          expiresAt:
+            type: integer
+          token:
+            type: string
+          user:
+            additionalProperties: {}
+            type: object
+        type: object
+    type: object
+  handler.UserListResponse:
+    properties:
+      data:
+        properties:
+          items:
+            items:
+              additionalProperties: {}
+              type: object
+            type: array
+        type: object
+    type: object
+  handler.UserResponse:
+    properties:
+      data:
+        additionalProperties: {}
+        type: object
+    type: object
+  logic.CreateUserInput:
+    properties:
+      nickName:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+  logic.LoginInput:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  logic.UpdateUserInput:
+    properties:
+      nickName:
+        type: string
+      password:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact: {}
+  description: Web Restic 的认证与用户管理 API。
+  title: Web Restic API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 登录成功后返回有效期默认 7 天的 JWT Bearer token。
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/logic.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 用户登录
+      tags:
+      - 认证
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 注册首个用户会自动授予 admin 角色，后续注册用户为 read 角色。
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/logic.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: 注册用户
+      tags:
+      - 认证
+  /api/users:
+    get:
+      description: 需要 read、write 或 admin 权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户
+    post:
+      consumes:
+      - application/json
+      description: 需要 admin 权限，可设置 admin、write 或 read 角色。
+      parameters:
+      - description: 用户信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/logic.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户
+  /api/users/{id}:
+    delete:
+      description: 需要 admin 权限。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 删除用户
+      tags:
+      - 用户
+    get:
+      description: 需要 read、write 或 admin 权限。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 获取用户详情
+      tags:
+      - 用户
+    put:
+      consumes:
+      - application/json
+      description: 需要 write 或 admin 权限；非管理员只能更新自己的资料且不能修改角色。
+      parameters:
+      - description: 用户 ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/logic.UpdateUserInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 更新用户
+      tags:
+      - 用户
+schemes:
+- http
+securityDefinitions:
+  bearerAuth:
+    description: 输入 JWT，格式为 "Bearer {token}"。
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
