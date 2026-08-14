@@ -22,7 +22,6 @@ import (
 // @title Web Restic API
 // @version 1.0
 // @description Web Restic 的认证与用户管理 API。
-// @host localhost:3000
 // @BasePath /
 // @schemes http
 // @securityDefinitions.apikey bearerAuth

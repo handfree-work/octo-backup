@@ -65,7 +65,6 @@ definitions:
       username:
         type: string
     type: object
-host: localhost:3000
 info:
   contact: {}
   description: Web Restic 的认证与用户管理 API。

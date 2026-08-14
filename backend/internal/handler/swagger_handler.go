@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"mime"
@@ -46,12 +47,30 @@ func SwaggerHandlersRegister(app *fiber.App) {
 		return c.Redirect().Status(fiber.StatusMovedPermanently).To("/swagger/index.html")
 	})
 	app.Get("/swagger/doc.json", func(c fiber.Ctx) error {
-		return c.Type("json").SendString(docs.SwaggerInfo.ReadDoc())
+		document, err := swaggerDocument()
+		if err != nil {
+			return err
+		}
+		return c.Type("json").SendString(document)
 	})
 	app.Get("/swagger/index.html", func(c fiber.Ctx) error {
 		return c.Type("html").SendString(swaggerIndex)
 	})
 	app.Get("/swagger/*", swaggerAsset)
+}
+
+func swaggerDocument() (string, error) {
+	document := docs.SwaggerInfo.ReadDoc()
+	var specification map[string]any
+	if err := json.Unmarshal([]byte(document), &specification); err != nil {
+		return "", err
+	}
+	delete(specification, "host")
+	encoded, err := json.Marshal(specification)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
 }
 
 func swaggerAsset(c fiber.Ctx) error {
