@@ -1,51 +1,42 @@
-import { baseRequestClient, requestClient } from '#/api/request';
+import { baseRequestClient } from '#/api/request';
 
 export namespace AuthApi {
-  /** 登录接口参数 */
   export interface LoginParams {
-    password?: string;
-    username?: string;
+    password: string;
+    username: string;
   }
 
-  /** 登录接口返回值 */
+  export interface RegisterParams extends LoginParams {
+    nickName?: string;
+  }
+
+  export interface User {
+    avatar?: string;
+    id: number;
+    nickName: string;
+    role: 'admin' | 'read' | 'write';
+    username: string;
+  }
+
   export interface LoginResult {
-    accessToken: string;
+    expiresAt: number;
+    token: string;
+    user: User;
   }
 
-  export interface RefreshTokenResult {
-    data: string;
-    status: number;
+  export interface RawResponse<T> {
+    data: {
+      data: T;
+    };
   }
 }
 
-/**
- * 登录
- */
 export async function loginApi(data: AuthApi.LoginParams) {
-  return requestClient.post<AuthApi.LoginResult>('/auth/login', data);
+  const response = await baseRequestClient.post<AuthApi.RawResponse<AuthApi.LoginResult>>('/auth/login', data);
+  return response.data.data;
 }
 
-/**
- * 刷新accessToken
- */
-export async function refreshTokenApi() {
-  return baseRequestClient.post<AuthApi.RefreshTokenResult>('/auth/refresh', {
-    withCredentials: true,
-  });
-}
-
-/**
- * 退出登录
- */
-export async function logoutApi() {
-  return baseRequestClient.post('/auth/logout', {
-    withCredentials: true,
-  });
-}
-
-/**
- * 获取用户权限码
- */
-export async function getAccessCodesApi() {
-  return requestClient.get<string[]>('/auth/codes');
+export async function registerApi(data: AuthApi.RegisterParams) {
+  const response = await baseRequestClient.post<AuthApi.RawResponse<AuthApi.User>>('/auth/register', data);
+  return response.data.data;
 }

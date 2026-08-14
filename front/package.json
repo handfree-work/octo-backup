@@ -25,6 +25,7 @@
     "debug": "vite --mode debug --open",
     "dev": "vite --mode development",
     "preview": "vite preview",
+    "test:auth": "vitest run --config vitest.auth.config.ts",
     "typecheck": "vue-tsc --noEmit --skipLibCheck"
   },
   "imports": {

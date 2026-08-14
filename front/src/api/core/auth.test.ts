@@ -34,7 +34,11 @@ describe('认证 API', () => {
     post.mockResolvedValue({ data: { data: user } });
 
     await expect(
-      registerApi({ nickName: '只读用户', password: 'secret', username: 'reader' }),
+      registerApi({
+        nickName: '只读用户',
+        password: 'secret',
+        username: 'reader',
+      }),
     ).resolves.toEqual(user);
     expect(post).toHaveBeenCalledWith('/auth/register', {
       nickName: '只读用户',

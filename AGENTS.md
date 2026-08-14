@@ -28,6 +28,7 @@
 - 后端日志统一使用 zap，同时输出到终端和 `./logs/app.log`，文件日志应支持滚动切分。
 - 受保护路由在 handler 注册时使用 `auth.Require` 声明 `guest`、`login`、`admin`、`write` 或 `read` 权限，由认证中间件统一校验 JWT。
 - JWT 默认有效期为 7 天；生产环境通过 `JWT_SECRET` 提供密钥，不在代码中硬编码生产密钥。
+- 前端登录与注册直接调用 `/api/auth/login`、`/api/auth/register`，并按后端 `{ data: ... }` 响应保存 JWT 和用户角色；开发代理必须保留 `/api` 前缀。
 
 ## 规范回顾
 
