@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -67,5 +68,8 @@ func TestInitZapWritesToLogFile(t *testing.T) {
 	}
 	if bytes.Contains(content, []byte("\x1b[")) {
 		t.Fatalf("file log must not contain ANSI colors: %q", content)
+	}
+	if !regexp.MustCompile(`"ts":"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}"`).Match(content) {
+		t.Fatalf("file log timestamp must use millisecond format: %q", content)
 	}
 }

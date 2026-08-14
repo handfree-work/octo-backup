@@ -16,6 +16,15 @@ var Logger = zap.NewNop()
 var Sugar = Logger.Sugar()
 var logFile *lumberjack.Logger
 
+const (
+	ansiReset  = "\x1b[0m"
+	ansiBlue   = "\x1b[34m"
+	ansiCyan   = "\x1b[36m"
+	ansiYellow = "\x1b[33m"
+	ansiRed    = "\x1b[31m"
+	timeFormat = "2006-01-02 15:04:05.000"
+)
+
 type ZapConfig struct {
 	Mode      string
 	Directory string
@@ -42,12 +51,9 @@ func InitZap(config ZapConfig) (*zap.Logger, error) {
 		return nil, err
 	}
 	level := parseLevel(config.Level, config.Mode)
-	encoderConfig := zap.NewProductionEncoderConfig()
-	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	encoderConfig.EncodeDuration = zapcore.StringDurationEncoder
 
 	consoleCore := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(encoderConfig),
+		newConsoleEncoder(),
 		zapcore.AddSync(os.Stdout),
 		level,
 	)
@@ -60,13 +66,55 @@ func InitZap(config ZapConfig) (*zap.Logger, error) {
 		LocalTime:  true,
 	}
 	fileCore := zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderConfig),
+		newFileEncoder(),
 		zapcore.AddSync(logFile),
 		level,
 	)
 	Logger = zap.New(zapcore.NewTee(consoleCore, fileCore), zap.AddCaller(), zap.AddStacktrace(zapcore.ErrorLevel))
 	Sugar = Logger.Sugar()
 	return Logger, nil
+}
+
+func newConsoleEncoder() zapcore.Encoder {
+	config := zap.NewProductionEncoderConfig()
+	config.EncodeTime = consoleTimeEncoder
+	config.EncodeLevel = consoleLevelEncoder
+	config.EncodeDuration = zapcore.StringDurationEncoder
+	config.CallerKey = ""
+	config.ConsoleSeparator = " "
+	return zapcore.NewConsoleEncoder(config)
+}
+
+func newFileEncoder() zapcore.Encoder {
+	config := zap.NewProductionEncoderConfig()
+	config.EncodeTime = plainTimeEncoder
+	config.EncodeDuration = zapcore.StringDurationEncoder
+	return zapcore.NewJSONEncoder(config)
+}
+
+func consoleTimeEncoder(value time.Time, encoder zapcore.PrimitiveArrayEncoder) {
+	encoder.AppendString(ansiCyan + "[" + value.Format(timeFormat) + "]" + ansiReset)
+}
+
+func plainTimeEncoder(value time.Time, encoder zapcore.PrimitiveArrayEncoder) {
+	encoder.AppendString(value.Format(timeFormat))
+}
+
+func consoleLevelEncoder(level zapcore.Level, encoder zapcore.PrimitiveArrayEncoder) {
+	encoder.AppendString(levelColor(level) + "[" + level.CapitalString() + "]" + ansiReset)
+}
+
+func levelColor(level zapcore.Level) string {
+	switch level {
+	case zapcore.WarnLevel:
+		return ansiYellow
+	case zapcore.ErrorLevel, zapcore.DPanicLevel, zapcore.PanicLevel, zapcore.FatalLevel:
+		return ansiRed
+	case zapcore.InfoLevel:
+		return ansiBlue
+	default:
+		return ansiCyan
+	}
 }
 
 func HTTPMiddleware() fiber.Handler {
