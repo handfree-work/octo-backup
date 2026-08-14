@@ -9,7 +9,9 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"handfree-work/web-restic/internal/auth"
 	"handfree-work/web-restic/internal/base/db_"
 	"handfree-work/web-restic/internal/handler"
 	"handfree-work/web-restic/internal/models"
@@ -31,13 +33,28 @@ func TestUserCRUD(t *testing.T) {
 	if err := db_.Migrate(db, &models.User{}); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
-	app := handler.NewApp(&svc.ServiceContext{Db: db})
+	app := handler.NewApp(&svc.ServiceContext{
+		Db:   db,
+		Auth: auth.Config{Secret: "test-secret", TokenTTL: time.Hour},
+	})
+	registered := doJSONRequest(t, app, http.MethodPost, "/api/auth/register", map[string]string{
+		"username": "admin",
+		"password": "secret",
+	})
+	if registered.Code != http.StatusCreated {
+		t.Fatalf("register status = %d, want %d", registered.Code, http.StatusCreated)
+	}
+	login := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
+		"username": "admin",
+		"password": "secret",
+	})
+	token := login.Data["token"].(string)
 
 	created := doJSONRequest(t, app, http.MethodPost, "/api/users", map[string]string{
 		"username": "alice",
 		"password": "secret",
 		"nickName": "Alice",
-	})
+	}, token)
 	if created.Code != http.StatusCreated {
 		t.Fatalf("create status = %d, want %d", created.Code, http.StatusCreated)
 	}
@@ -49,24 +66,24 @@ func TestUserCRUD(t *testing.T) {
 	}
 	userID := int64(created.Data["id"].(float64))
 
-	list := doJSONRequest(t, app, http.MethodGet, "/api/users", nil)
+	list := doJSONRequest(t, app, http.MethodGet, "/api/users", nil, token)
 	if list.Code != http.StatusOK {
 		t.Fatalf("list status = %d, want %d", list.Code, http.StatusOK)
 	}
 	users, ok := list.Data["items"].([]any)
-	if !ok || len(users) != 1 {
-		t.Fatalf("list items = %#v, want one user", list.Data["items"])
+	if !ok || len(users) != 2 {
+		t.Fatalf("list items = %#v, want two users", list.Data["items"])
 	}
 
 	userPath := fmt.Sprintf("/api/users/%d", userID)
-	found := doJSONRequest(t, app, http.MethodGet, userPath, nil)
+	found := doJSONRequest(t, app, http.MethodGet, userPath, nil, token)
 	if found.Code != http.StatusOK {
 		t.Fatalf("get status = %d, want %d", found.Code, http.StatusOK)
 	}
 
 	updated := doJSONRequest(t, app, http.MethodPut, userPath, map[string]string{
 		"nickName": "Alice Updated",
-	})
+	}, token)
 	if updated.Code != http.StatusOK {
 		t.Fatalf("update status = %d, want %d", updated.Code, http.StatusOK)
 	}
@@ -74,19 +91,19 @@ func TestUserCRUD(t *testing.T) {
 		t.Fatalf("updated nickname = %#v, want Alice Updated", updated.Data["nickName"])
 	}
 
-	deleted := doJSONRequest(t, app, http.MethodDelete, userPath, nil)
+	deleted := doJSONRequest(t, app, http.MethodDelete, userPath, nil, token)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, want %d", deleted.Code, http.StatusNoContent)
 	}
 
-	notFound := doJSONRequest(t, app, http.MethodGet, userPath, nil)
+	notFound := doJSONRequest(t, app, http.MethodGet, userPath, nil, token)
 	if notFound.Code != http.StatusNotFound {
 		t.Fatalf("get deleted user status = %d, want %d", notFound.Code, http.StatusNotFound)
 	}
 
 	invalid := doJSONRequest(t, app, http.MethodPost, "/api/users", map[string]string{
 		"password": "secret",
-	})
+	}, token)
 	if invalid.Code != http.StatusBadRequest {
 		t.Fatalf("invalid create status = %d, want %d", invalid.Code, http.StatusBadRequest)
 	}
@@ -98,7 +115,7 @@ type response struct {
 	Data map[string]any
 }
 
-func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any) response {
+func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any, tokens ...string) response {
 	t.Helper()
 	var payload io.Reader
 	if body != nil {
@@ -111,6 +128,9 @@ func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any) 
 	req := httptest.NewRequest(method, path, payload)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
+	}
+	if len(tokens) > 0 && tokens[0] != "" {
+		req.Header.Set("Authorization", "Bearer "+tokens[0])
 	}
 	res, err := app.Test(req)
 	if err != nil {
