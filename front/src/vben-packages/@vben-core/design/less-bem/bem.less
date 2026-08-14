@@ -1,0 +1,26 @@
+@import './constants.less';
+
+.b(@block) {
+  .@{vben-namespace}-@{block} {
+    .-();
+  }
+}
+
+.e(@name) {
+  &@{element-separator}@{name} {
+    .-();
+  }
+}
+
+.m(@name) {
+  &@{modifier-separator}@{name} {
+    .-();
+  }
+}
+
+// block__element.is-active {}
+.is(@state, @prefix: @state-prefix) {
+  &.@{prefix}-@{state} {
+    .-();
+  }
+}
