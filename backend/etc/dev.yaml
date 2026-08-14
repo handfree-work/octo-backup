@@ -1,2 +1,6 @@
-Name: web-restic
-Mode: dev
+name: web-restic
+mode: dev
+server:
+  port: ":3000"
+database:
+  path: "./data/db.sqlite"

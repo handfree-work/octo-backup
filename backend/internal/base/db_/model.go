@@ -13,7 +13,7 @@ type IDao[T BaseModel] interface {
 }
 
 type BaseModel struct {
-	Id        *int64 `gorm:"PrimaryKey;column:id;comment:主键ID" example:"7"`
+	Id        *int64 `json:"id" gorm:"PrimaryKey;column:id;comment:主键ID" example:"7"`
 	CreatedAt int64  `json:"createdAt" gorm:"autoCreateTime:milli;column:created_at;comment:创建时间;" example:"创建时间"`
 	UpdatedAt int64  `json:"updatedAt" gorm:"autoUpdateTime:milli;column:updated_at;comment:更新时间;" example:"更新时间"`
 }

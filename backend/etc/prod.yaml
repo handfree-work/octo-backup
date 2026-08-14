@@ -1,1 +1,3 @@
-Mode: prod
+mode: prod
+server:
+  port: ":3000"

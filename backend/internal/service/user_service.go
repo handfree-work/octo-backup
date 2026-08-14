@@ -2,14 +2,32 @@ package logic
 
 import (
 	"context"
-	"handfree-work/web-restic/internal/base/conv_"
+	"errors"
+	"fmt"
+	"strings"
+
 	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/base/error_"
-	"handfree-work/web-restic/internal/base/error_/code_"
-	"handfree-work/web-restic/internal/base/log_"
 	"handfree-work/web-restic/internal/models"
 	"handfree-work/web-restic/internal/svc"
 )
+
+var (
+	ErrUserNotFound   = errors.New("用户不存在")
+	ErrInvalidUser    = errors.New("用户参数错误")
+	ErrUsernameExists = errors.New("用户名已存在")
+)
+
+type CreateUserInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	NickName string `json:"nickName"`
+}
+
+type UpdateUserInput struct {
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+	NickName *string `json:"nickName"`
+}
 
 type UserService struct {
 	ctx    context.Context
@@ -17,32 +35,101 @@ type UserService struct {
 }
 
 func NewUserService(ctx context.Context, svcCtx *svc.ServiceContext) *UserService {
-	return &UserService{
-		ctx:    ctx,
-		svcCtx: svcCtx,
-	}
+	return &UserService{ctx: ctx, svcCtx: svcCtx}
 }
 
-func (l *UserService) Add(in *models.User) (*models.User, error) {
-	if in.Id == nil || *in.Id == 0 {
-		return nil, error_.NewFormatError(code_.ParamIsBlank_, "user.id")
+func (l *UserService) Create(in *CreateUserInput) (*models.User, error) {
+	if in == nil || strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
+		return nil, fmt.Errorf("%w: 用户名和密码不能为空", ErrInvalidUser)
 	}
-	var entity models.User
-	conv_.Convert(in, &entity)
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	username := strings.TrimSpace(in.Username)
+	existing, err := dao.FindOne(&models.User{Username: username})
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, ErrUsernameExists
+	}
 
-	if in.Password != "" {
-		if err := entity.EncryptPassword(in.Password); err != nil {
-			log_.Error("EncryptPassword ", err)
-			return nil, error_.NewTextError("EncryptPassword error")
+	user := &models.User{Username: username, NickName: strings.TrimSpace(in.NickName)}
+	if user.NickName == "" {
+		user.NickName = username
+	}
+	if err := user.EncryptPassword(in.Password); err != nil {
+		return nil, fmt.Errorf("加密用户密码: %w", err)
+	}
+	if err := dao.Create(user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (l *UserService) List() ([]*models.User, error) {
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	return dao.FindList(&models.User{}, nil)
+}
+
+func (l *UserService) Get(id int64) (*models.User, error) {
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	user, err := dao.GetById(id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, ErrUserNotFound
+	}
+	return user, nil
+}
+
+func (l *UserService) Update(id int64, in *UpdateUserInput) (*models.User, error) {
+	if in == nil {
+		return nil, fmt.Errorf("%w: 请求体不能为空", ErrInvalidUser)
+	}
+	user, err := l.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	if in.Username != nil {
+		username := strings.TrimSpace(*in.Username)
+		if username == "" {
+			return nil, fmt.Errorf("%w: 用户名不能为空", ErrInvalidUser)
+		}
+		if username != user.Username {
+			dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+			existing, err := dao.FindOne(&models.User{Username: username})
+			if err != nil {
+				return nil, err
+			}
+			if existing != nil {
+				return nil, ErrUsernameExists
+			}
+			user.Username = username
 		}
 	}
-
-	db_.NewCtx(l.ctx, l.svcCtx.Db)
-	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
-	err := dao.Create(&entity)
-	if err != nil {
-		error_.LogError("add user ", err)
-		return nil, error_.NewTextError("add user error")
+	if in.NickName != nil {
+		user.NickName = strings.TrimSpace(*in.NickName)
 	}
-	return in, nil
+	if in.Password != nil {
+		if strings.TrimSpace(*in.Password) == "" {
+			return nil, fmt.Errorf("%w: 密码不能为空", ErrInvalidUser)
+		}
+		if err := user.EncryptPassword(*in.Password); err != nil {
+			return nil, fmt.Errorf("加密用户密码: %w", err)
+		}
+	}
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	if _, err := dao.UpdateById(id, user); err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (l *UserService) Delete(id int64) error {
+	if _, err := l.Get(id); err != nil {
+		return err
+	}
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	_, err := dao.Delete(&id)
+	return err
 }

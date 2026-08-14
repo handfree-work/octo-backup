@@ -12,7 +12,10 @@ import (
 
 	"handfree-work/web-restic/internal/base/db_"
 	"handfree-work/web-restic/internal/handler"
+	"handfree-work/web-restic/internal/models"
 	"handfree-work/web-restic/internal/svc"
+
+	"github.com/gofiber/fiber/v3"
 )
 
 func TestUserCRUD(t *testing.T) {
@@ -20,7 +23,12 @@ func TestUserCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("OpenSQLite() error = %v", err)
 	}
-	if err := db_.Migrate(db); err != nil {
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("DB() error = %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	if err := db_.Migrate(db, &models.User{}); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 	app := handler.NewApp(&svc.ServiceContext{Db: db})
@@ -90,9 +98,7 @@ type response struct {
 	Data map[string]any
 }
 
-func doJSONRequest(t *testing.T, app interface {
-	Test(*http.Request, ...int) (*http.Response, error)
-}, method, path string, body any) response {
+func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any) response {
 	t.Helper()
 	var payload io.Reader
 	if body != nil {

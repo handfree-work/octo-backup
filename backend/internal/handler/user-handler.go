@@ -1,41 +1,118 @@
 package handler
 
 import (
-	"handfree-work/web-restic/internal/models"
+	"errors"
+	"strconv"
+
+	logic "handfree-work/web-restic/internal/service"
+	"handfree-work/web-restic/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/utils/v2"
+	"github.com/gofiber/fiber/v3/middleware/recover"
 )
 
-func UserHandlersRegister(app *fiber.App) {
-	v1 := app.Group("/api/user")
-	// Bind handlers
-	v1.Post("/list", UserList)
-	v1.Post("/add", UserCreate)
+func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
+	app := fiber.New()
+	app.Use(recover.New())
+	UserHandlersRegister(app, svcCtx)
+	return app
 }
 
-// UserList returns a list of users
-func UserList(c fiber.Ctx) error {
-	users := []models.User{}
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"users":   users,
-	})
+func UserHandlersRegister(app *fiber.App, svcCtx *svc.ServiceContext) {
+	users := app.Group("/api/users")
+	users.Post("/", createUser(svcCtx))
+	users.Get("/", listUsers(svcCtx))
+	users.Get("/:id", getUser(svcCtx))
+	users.Put("/:id", updateUser(svcCtx))
+	users.Delete("/:id", deleteUser(svcCtx))
 }
 
-// UserCreate registers a user
-func UserCreate(c fiber.Ctx) error {
-	user := &models.User{
-		// Note: when writing to external database,
-		// we can simply use - Name: c.FormValue("user")
-		NickName: utils.CopyString(c.FormValue("nick_name")),
+func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var input logic.CreateUserInput
+		if err := c.Bind().Body(&input); err != nil {
+			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+		}
+		user, err := logic.NewUserService(c.Context(), svcCtx).Create(&input)
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
 	}
+}
 
-	// 调用 user service 创建用户
+func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		users, err := logic.NewUserService(c.Context(), svcCtx).List()
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		return c.JSON(fiber.Map{"data": fiber.Map{"items": users}})
+	}
+}
 
-	return c.JSON(fiber.Map{
-		"success": true,
-		"user":    user,
-	})
+func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		id, err := parseUserID(c)
+		if err != nil {
+			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
+		}
+		user, err := logic.NewUserService(c.Context(), svcCtx).Get(id)
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		return c.JSON(fiber.Map{"data": user})
+	}
+}
+
+func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		id, err := parseUserID(c)
+		if err != nil {
+			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
+		}
+		var input logic.UpdateUserInput
+		if err := c.Bind().Body(&input); err != nil {
+			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+		}
+		user, err := logic.NewUserService(c.Context(), svcCtx).Update(id, &input)
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		return c.JSON(fiber.Map{"data": user})
+	}
+}
+
+func deleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		id, err := parseUserID(c)
+		if err != nil {
+			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
+		}
+		if err := logic.NewUserService(c.Context(), svcCtx).Delete(id); err != nil {
+			return writeUserError(c, err)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	}
+}
+
+func parseUserID(c fiber.Ctx) (int64, error) {
+	return strconv.ParseInt(c.Params("id"), 10, 64)
+}
+
+func writeUserError(c fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, logic.ErrInvalidUser):
+		return writeError(c, fiber.StatusBadRequest, err.Error())
+	case errors.Is(err, logic.ErrUserNotFound):
+		return writeError(c, fiber.StatusNotFound, err.Error())
+	case errors.Is(err, logic.ErrUsernameExists):
+		return writeError(c, fiber.StatusConflict, err.Error())
+	default:
+		return writeError(c, fiber.StatusInternalServerError, "服务器内部错误")
+	}
+}
+
+func writeError(c fiber.Ctx, status int, message string) error {
+	return c.Status(status).JSON(fiber.Map{"error": message})
 }
