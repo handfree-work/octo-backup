@@ -32,7 +32,7 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		Auth: auth.Config{Secret: "test-secret", TokenTTL: time.Hour},
 	})
 
-	unauthorized := doJSONRequest(t, app, http.MethodGet, "/api/users", nil)
+	unauthorized := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil)
 	if unauthorized.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthorized list status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
 	}
@@ -68,11 +68,11 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		t.Fatalf("login token = %#v, want non-empty string", login.Data["token"])
 	}
 
-	authorized := doJSONRequest(t, app, http.MethodGet, "/api/users", nil, token)
+	authorized := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil, token)
 	if authorized.Code != http.StatusOK {
 		t.Fatalf("authorized list status = %d, want %d", authorized.Code, http.StatusOK)
 	}
-	writer := doJSONRequest(t, app, http.MethodPost, "/api/users", map[string]string{
+	writer := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
 		"username": "writer",
 		"password": "secret",
 		"role":     "write",
@@ -86,13 +86,13 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		"password": "secret",
 	})
 	writerToken := writerLogin.Data["token"].(string)
-	writerUpdate := doJSONRequest(t, app, http.MethodPut, "/api/users/"+strconv.FormatInt(writerID, 10), map[string]string{
+	writerUpdate := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(writerID, 10)+"/update", map[string]string{
 		"nickName": "updated by writer",
 	}, writerToken)
 	if writerUpdate.Code != http.StatusOK {
 		t.Fatalf("writer update status = %d, want %d", writerUpdate.Code, http.StatusOK)
 	}
-	roleEscalation := doJSONRequest(t, app, http.MethodPut, "/api/users/"+strconv.FormatInt(writerID, 10), map[string]string{
+	roleEscalation := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(writerID, 10)+"/update", map[string]string{
 		"role": "admin",
 	}, writerToken)
 	if roleEscalation.Code != http.StatusForbidden {
@@ -115,7 +115,7 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if !ok || readerToken == "" {
 		t.Fatalf("reader token = %#v, want non-empty string", readerLogin.Data["token"])
 	}
-	forbidden := doJSONRequest(t, app, http.MethodPut, "/api/users/"+strconv.FormatInt(readerID, 10), map[string]string{
+	forbidden := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(readerID, 10)+"/update", map[string]string{
 		"nickName": "blocked",
 	}, readerToken)
 	if forbidden.Code != http.StatusForbidden {

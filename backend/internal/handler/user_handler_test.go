@@ -50,7 +50,7 @@ func TestUserCRUD(t *testing.T) {
 	})
 	token := login.Data["token"].(string)
 
-	created := doJSONRequest(t, app, http.MethodPost, "/api/users", map[string]string{
+	created := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
 		"username": "alice",
 		"password": "secret",
 		"nickName": "Alice",
@@ -66,7 +66,7 @@ func TestUserCRUD(t *testing.T) {
 	}
 	userID := int64(created.Data["id"].(float64))
 
-	list := doJSONRequest(t, app, http.MethodGet, "/api/users", nil, token)
+	list := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil, token)
 	if list.Code != http.StatusOK {
 		t.Fatalf("list status = %d, want %d", list.Code, http.StatusOK)
 	}
@@ -76,12 +76,12 @@ func TestUserCRUD(t *testing.T) {
 	}
 
 	userPath := fmt.Sprintf("/api/users/%d", userID)
-	found := doJSONRequest(t, app, http.MethodGet, userPath, nil, token)
+	found := doJSONRequest(t, app, http.MethodPost, userPath+"/detail", nil, token)
 	if found.Code != http.StatusOK {
 		t.Fatalf("get status = %d, want %d", found.Code, http.StatusOK)
 	}
 
-	updated := doJSONRequest(t, app, http.MethodPut, userPath, map[string]string{
+	updated := doJSONRequest(t, app, http.MethodPost, userPath+"/update", map[string]string{
 		"nickName": "Alice Updated",
 	}, token)
 	if updated.Code != http.StatusOK {
@@ -91,17 +91,17 @@ func TestUserCRUD(t *testing.T) {
 		t.Fatalf("updated nickname = %#v, want Alice Updated", updated.Data["nickName"])
 	}
 
-	deleted := doJSONRequest(t, app, http.MethodDelete, userPath, nil, token)
+	deleted := doJSONRequest(t, app, http.MethodPost, userPath+"/delete", nil, token)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete status = %d, want %d", deleted.Code, http.StatusNoContent)
 	}
 
-	notFound := doJSONRequest(t, app, http.MethodGet, userPath, nil, token)
+	notFound := doJSONRequest(t, app, http.MethodPost, userPath+"/detail", nil, token)
 	if notFound.Code != http.StatusNotFound {
 		t.Fatalf("get deleted user status = %d, want %d", notFound.Code, http.StatusNotFound)
 	}
 
-	invalid := doJSONRequest(t, app, http.MethodPost, "/api/users", map[string]string{
+	invalid := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
 		"password": "secret",
 	}, token)
 	if invalid.Code != http.StatusBadRequest {

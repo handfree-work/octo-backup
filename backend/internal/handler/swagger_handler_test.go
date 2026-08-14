@@ -51,7 +51,11 @@ func TestSwaggerDocumentation(t *testing.T) {
 	for _, expected := range []string{
 		"\"/api/auth/login\"",
 		"\"/api/auth/register\"",
-		"\"/api/users\"",
+		"\"/api/users/create\"",
+		"\"/api/users/list\"",
+		"\"/api/users/{id}/detail\"",
+		"\"/api/users/{id}/update\"",
+		"\"/api/users/{id}/delete\"",
 		"\"bearerAuth\"",
 	} {
 		if !strings.Contains(document.Body, expected) {
@@ -60,6 +64,11 @@ func TestSwaggerDocumentation(t *testing.T) {
 	}
 	if strings.Contains(document.Body, "\"host\":") {
 		t.Fatal("OpenAPI 文档不应固定 host，以便 Swagger UI 使用当前服务地址")
+	}
+	for _, unsupportedMethod := range []string{"\"get\":", "\"put\":", "\"delete\":"} {
+		if strings.Contains(document.Body, unsupportedMethod) {
+			t.Fatalf("OpenAPI 文档不应包含 %s 业务接口", unsupportedMethod)
+		}
 	}
 }
 
