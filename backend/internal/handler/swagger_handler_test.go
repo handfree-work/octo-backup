@@ -58,6 +58,9 @@ func TestSwaggerDocumentation(t *testing.T) {
 			t.Fatalf("OpenAPI 文档缺少 %s", expected)
 		}
 	}
+	if strings.Contains(document.Body, "\"host\":") {
+		t.Fatal("OpenAPI 文档不应固定 host，以便 Swagger UI 使用当前服务地址")
+	}
 }
 
 type rawResponse struct {
