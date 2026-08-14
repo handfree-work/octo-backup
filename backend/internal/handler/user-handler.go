@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strconv"
 
+	"handfree-work/web-restic/internal/auth"
 	logic "handfree-work/web-restic/internal/service"
 	"handfree-work/web-restic/internal/svc"
 
@@ -19,12 +20,55 @@ func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
 }
 
 func UserHandlersRegister(app *fiber.App, svcCtx *svc.ServiceContext) {
+	authRoutes := app.Group("/api/auth")
+	authRoutes.Post("/register", auth.Require(svcCtx.Auth, auth.Guest), registerUser(svcCtx))
+	authRoutes.Post("/login", auth.Require(svcCtx.Auth, auth.Guest), loginUser(svcCtx))
+
 	users := app.Group("/api/users")
-	users.Post("/", createUser(svcCtx))
-	users.Get("/", listUsers(svcCtx))
-	users.Get("/:id", getUser(svcCtx))
-	users.Put("/:id", updateUser(svcCtx))
-	users.Delete("/:id", deleteUser(svcCtx))
+	users.Post("/", auth.Require(svcCtx.Auth, auth.Admin), createUser(svcCtx))
+	users.Get("/", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
+	users.Get("/:id", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
+	users.Put("/:id", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
+	users.Delete("/:id", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
+}
+
+func registerUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var input logic.CreateUserInput
+		if err := c.Bind().Body(&input); err != nil {
+			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+		}
+		user, err := logic.NewUserService(c.Context(), svcCtx).Register(&input)
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
+	}
+}
+
+func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var input logic.LoginInput
+		if err := c.Bind().Body(&input); err != nil {
+			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+		}
+		user, err := logic.NewUserService(c.Context(), svcCtx).Login(&input)
+		if err != nil {
+			return writeUserError(c, err)
+		}
+		if user.Id == nil {
+			return writeError(c, fiber.StatusInternalServerError, "用户数据错误")
+		}
+		token, expiresAt, err := svcCtx.Auth.Issue(*user.Id, user.Username, user.Role)
+		if err != nil {
+			return writeError(c, fiber.StatusInternalServerError, "签发登录凭证失败")
+		}
+		return c.JSON(fiber.Map{"data": fiber.Map{
+			"token":     token,
+			"expiresAt": expiresAt.Unix(),
+			"user":      user,
+		}})
+	}
 }
 
 func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
@@ -75,6 +119,16 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err := c.Bind().Body(&input); err != nil {
 			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
 		}
+		claims, ok := auth.ClaimsFromContext(c)
+		if !ok {
+			return writeError(c, fiber.StatusUnauthorized, "未登录或登录已过期")
+		}
+		if claims.Role != auth.RoleAdmin && claims.UserID != id {
+			return writeError(c, fiber.StatusForbidden, "没有访问权限")
+		}
+		if claims.Role != auth.RoleAdmin && input.Role != nil {
+			return writeError(c, fiber.StatusForbidden, "只有管理员可以调整角色")
+		}
 		user, err := logic.NewUserService(c.Context(), svcCtx).Update(id, &input)
 		if err != nil {
 			return writeUserError(c, err)
@@ -108,6 +162,8 @@ func writeUserError(c fiber.Ctx, err error) error {
 		return writeError(c, fiber.StatusNotFound, err.Error())
 	case errors.Is(err, logic.ErrUsernameExists):
 		return writeError(c, fiber.StatusConflict, err.Error())
+	case errors.Is(err, logic.ErrInvalidLogin):
+		return writeError(c, fiber.StatusUnauthorized, err.Error())
 	default:
 		return writeError(c, fiber.StatusInternalServerError, "服务器内部错误")
 	}

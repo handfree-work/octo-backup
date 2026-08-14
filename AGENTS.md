@@ -23,6 +23,12 @@
 - SQLite 驱动需支持 `CGO_ENABLED=0` 构建，确保本地和 Docker 环境无需 C 编译器即可运行。
 - 部署：Docker Compose
 
+## 日志与权限
+
+- 后端日志统一使用 zap，同时输出到终端和 `./logs/app.log`，文件日志应支持滚动切分。
+- 受保护路由在 handler 注册时使用 `auth.Require` 声明 `guest`、`login`、`admin`、`write` 或 `read` 权限，由认证中间件统一校验 JWT。
+- JWT 默认有效期为 7 天；生产环境通过 `JWT_SECRET` 提供密钥，不在代码中硬编码生产密钥。
+
 ## 规范回顾
 
 - 每次任务收尾时，回顾用户提出的要求，识别其中可跨任务复用、稳定且不与既有规范冲突的约束。

@@ -7,10 +7,12 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/gogf/gf/v2 v2.10.2
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/olekukonko/errors v1.1.0
 	go.uber.org/zap v1.28.0
 	golang.org/x/crypto v0.53.0
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 )

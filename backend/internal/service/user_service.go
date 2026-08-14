@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"handfree-work/web-restic/internal/auth"
 	"handfree-work/web-restic/internal/base/db_"
 	"handfree-work/web-restic/internal/models"
 	"handfree-work/web-restic/internal/svc"
@@ -15,18 +16,26 @@ var (
 	ErrUserNotFound   = errors.New("用户不存在")
 	ErrInvalidUser    = errors.New("用户参数错误")
 	ErrUsernameExists = errors.New("用户名已存在")
+	ErrInvalidLogin   = errors.New("用户名或密码错误")
 )
 
 type CreateUserInput struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	NickName string `json:"nickName"`
+	Role     string `json:"role"`
 }
 
 type UpdateUserInput struct {
 	Username *string `json:"username"`
 	Password *string `json:"password"`
 	NickName *string `json:"nickName"`
+	Role     *string `json:"role"`
+}
+
+type LoginInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 type UserService struct {
@@ -39,8 +48,32 @@ func NewUserService(ctx context.Context, svcCtx *svc.ServiceContext) *UserServic
 }
 
 func (l *UserService) Create(in *CreateUserInput) (*models.User, error) {
+	role := auth.RoleRead
+	if in != nil && strings.TrimSpace(in.Role) != "" {
+		role = strings.TrimSpace(in.Role)
+	}
+	return l.create(in, role)
+}
+
+func (l *UserService) Register(in *CreateUserInput) (*models.User, error) {
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	count, err := dao.Count(&models.User{})
+	if err != nil {
+		return nil, err
+	}
+	role := auth.RoleRead
+	if count == 0 {
+		role = auth.RoleAdmin
+	}
+	return l.create(in, role)
+}
+
+func (l *UserService) create(in *CreateUserInput, role string) (*models.User, error) {
 	if in == nil || strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
 		return nil, fmt.Errorf("%w: 用户名和密码不能为空", ErrInvalidUser)
+	}
+	if !auth.ValidRole(role) {
+		return nil, fmt.Errorf("%w: 用户角色无效", ErrInvalidUser)
 	}
 	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
 	username := strings.TrimSpace(in.Username)
@@ -52,7 +85,7 @@ func (l *UserService) Create(in *CreateUserInput) (*models.User, error) {
 		return nil, ErrUsernameExists
 	}
 
-	user := &models.User{Username: username, NickName: strings.TrimSpace(in.NickName)}
+	user := &models.User{Username: username, NickName: strings.TrimSpace(in.NickName), Role: role}
 	if user.NickName == "" {
 		user.NickName = username
 	}
@@ -61,6 +94,21 @@ func (l *UserService) Create(in *CreateUserInput) (*models.User, error) {
 	}
 	if err := dao.Create(user); err != nil {
 		return nil, err
+	}
+	return user, nil
+}
+
+func (l *UserService) Login(in *LoginInput) (*models.User, error) {
+	if in == nil || strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
+		return nil, ErrInvalidLogin
+	}
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	user, err := dao.FindOne(&models.User{Username: strings.TrimSpace(in.Username)})
+	if err != nil {
+		return nil, err
+	}
+	if user == nil || user.CheckPassword(in.Password) != nil {
+		return nil, ErrInvalidLogin
 	}
 	return user, nil
 }
@@ -117,6 +165,13 @@ func (l *UserService) Update(id int64, in *UpdateUserInput) (*models.User, error
 		if err := user.EncryptPassword(*in.Password); err != nil {
 			return nil, fmt.Errorf("加密用户密码: %w", err)
 		}
+	}
+	if in.Role != nil {
+		role := strings.TrimSpace(*in.Role)
+		if !auth.ValidRole(role) {
+			return nil, fmt.Errorf("%w: 用户角色无效", ErrInvalidUser)
+		}
+		user.Role = role
 	}
 	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
 	if _, err := dao.UpdateById(id, user); err != nil {

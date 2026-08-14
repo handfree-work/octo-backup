@@ -14,6 +14,8 @@ type Config struct {
 	Mode     string         `yaml:"mode"`
 	Server   ServerConfig   `yaml:"server"`
 	Database DatabaseConfig `yaml:"database"`
+	Auth     AuthConfig     `yaml:"auth"`
+	Log      LogConfig      `yaml:"log"`
 }
 
 type ServerConfig struct {
@@ -22,6 +24,16 @@ type ServerConfig struct {
 
 type DatabaseConfig struct {
 	Path string `yaml:"path"`
+}
+
+type AuthConfig struct {
+	JWTSecret string `yaml:"jwtSecret"`
+	TokenTTL  string `yaml:"tokenTTL"`
+}
+
+type LogConfig struct {
+	Directory string `yaml:"directory"`
+	Level     string `yaml:"level"`
 }
 
 // Load 先加载 dev.yaml 作为默认配置，再加载指定运行模式的配置覆盖同名字段。

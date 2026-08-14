@@ -2,19 +2,21 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
 
+	"handfree-work/web-restic/internal/auth"
 	"handfree-work/web-restic/internal/base/db_"
+	"handfree-work/web-restic/internal/base/log_"
 	"handfree-work/web-restic/internal/config"
 	"handfree-work/web-restic/internal/handler"
 	"handfree-work/web-restic/internal/models"
 	"handfree-work/web-restic/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/gofiber/fiber/v3/middleware/static"
+	"go.uber.org/zap"
 )
 
 var (
@@ -28,8 +30,18 @@ func main() {
 	flag.Parse()
 	cfg, err := config.Load(*configDir, *mode)
 	if err != nil {
-		log.Fatalf("加载配置失败: %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
+		return
 	}
+	if _, err := log_.InitZap(log_.ZapConfig{
+		Mode:      cfg.Mode,
+		Directory: cfg.Log.Directory,
+		Level:     cfg.Log.Level,
+	}); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
+		return
+	}
+	defer log_.ToDefer()
 	listenAddr := cfg.Server.Port
 	if *port != "" {
 		listenAddr = *port
@@ -41,22 +53,36 @@ func main() {
 	if databasePath == "" {
 		databasePath = "./data/db.sqlite"
 	}
+	jwtSecret := getenv("JWT_SECRET", cfg.Auth.JWTSecret)
+	if cfg.Mode == "prod" && os.Getenv("JWT_SECRET") == "" {
+		log_.Logger.Error("生产环境必须设置 JWT_SECRET")
+		return
+	}
+	authConfig, err := auth.NewConfig(jwtSecret, cfg.Auth.TokenTTL)
+	if err != nil {
+		log_.Logger.Error("初始化认证配置失败", zap.Error(err))
+		return
+	}
 	database, err := db_.OpenSQLite(databasePath)
 	if err != nil {
-		log.Fatalf("连接数据库失败: %v", err)
+		log_.Logger.Error("连接数据库失败", zap.Error(err))
+		return
 	}
 	if err := db_.Migrate(database, &models.User{}); err != nil {
-		log.Fatalf("初始化数据库失败: %v", err)
+		log_.Logger.Error("初始化数据库失败", zap.Error(err))
+		return
 	}
 
 	app := fiber.New()
 	app.Use(recover.New())
-	app.Use(logger.New())
-	handler.UserHandlersRegister(app, &svc.ServiceContext{Db: database})
+	app.Use(log_.HTTPMiddleware())
+	handler.UserHandlersRegister(app, &svc.ServiceContext{Db: database, Auth: authConfig})
 	app.Get("/*", static.New("./static/public"))
 
-	log.Printf("web-restic mode=%s listening on %s", cfg.Mode, listenAddr)
-	log.Fatal(app.Listen(listenAddr, fiber.ListenConfig{EnablePrefork: *prod}))
+	log_.Logger.Info("web-restic 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))
+	if err := app.Listen(listenAddr, fiber.ListenConfig{EnablePrefork: *prod}); err != nil {
+		log_.Logger.Error("服务停止", zap.Error(err))
+	}
 }
 
 func getenv(name, fallback string) string {

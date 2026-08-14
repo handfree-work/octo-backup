@@ -4,3 +4,9 @@ server:
   port: ":3000"
 database:
   path: "./data/db.sqlite"
+auth:
+  jwtSecret: "replace-this-dev-secret"
+  tokenTTL: "168h"
+log:
+  directory: "./logs"
+  level: "debug"

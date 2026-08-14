@@ -8,6 +8,7 @@ import (
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // OpenSQLite 打开 SQLite 数据库，并在需要时创建数据库目录。
@@ -18,7 +19,7 @@ func OpenSQLite(path string) (*gorm.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, fmt.Errorf("创建数据库目录: %w", err)
 	}
-	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{TranslateError: true})
+	db, err := gorm.Open(sqlite.Open(path), &gorm.Config{TranslateError: true, Logger: logger.Discard})
 	if err != nil {
 		return nil, fmt.Errorf("打开 SQLite 数据库: %w", err)
 	}
