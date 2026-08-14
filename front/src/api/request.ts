@@ -17,8 +17,6 @@ import { message } from 'antdv-next';
 
 import { useAuthStore } from '#/store';
 
-import { refreshTokenApi } from './core';
-
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
@@ -45,15 +43,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     }
   }
 
-  /**
-   * 刷新token逻辑
-   */
+  // 当前后端不提供刷新 Token 接口；该分支仅在显式开启刷新功能时才会调用。
   async function doRefreshToken() {
-    const accessStore = useAccessStore();
-    const resp = await refreshTokenApi();
-    const newToken = resp.data;
-    accessStore.setAccessToken(newToken);
-    return newToken;
+    return '';
   }
 
   function formatToken(token: null | string) {
