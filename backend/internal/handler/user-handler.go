@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"handfree-work/web-restic/models"
+	"handfree-work/web-restic/internal/models"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/utils/v2"
@@ -29,8 +29,10 @@ func UserCreate(c fiber.Ctx) error {
 	user := &models.User{
 		// Note: when writing to external database,
 		// we can simply use - Name: c.FormValue("user")
-		Name: utils.CopyString(c.FormValue("user")),
+		NickName: utils.CopyString(c.FormValue("nick_name")),
 	}
+
+	// 调用 user service 创建用户
 
 	return c.JSON(fiber.Map{
 		"success": true,

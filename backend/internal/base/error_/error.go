@@ -1,8 +1,8 @@
 package error_
 
 import (
-	"handfree-work/web-restic/base/error_/code_"
-	"handfree-work/web-restic/base/log_"
+	"handfree-work/web-restic/internal/base/error_/code_"
+	"handfree-work/web-restic/internal/base/log_"
 )
 
 type CodedError struct {

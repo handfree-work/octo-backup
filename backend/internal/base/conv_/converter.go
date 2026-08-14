@@ -1,7 +1,7 @@
 package conv_
 
 import (
-	"handfree-work/web-restic/base/log_"
+	"handfree-work/web-restic/internal/base/log_"
 	"strconv"
 	"strings"
 

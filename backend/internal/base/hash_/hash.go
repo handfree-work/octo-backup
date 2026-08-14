@@ -4,7 +4,7 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
-	"handfree-work/web-restic/base/log_"
+	"handfree-work/web-restic/internal/base/log_"
 )
 
 func Md5(content string) string {
