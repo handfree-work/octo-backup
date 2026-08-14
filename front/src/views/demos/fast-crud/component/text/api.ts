@@ -21,7 +21,7 @@ export function DelObj(id: any) {
 }
 
 export function GetObj(id: any) {
-  return requestClient.get(`${apiPrefix}/get`, { params: { id } });
+  return requestClient.post(`${apiPrefix}/get`, { id });
 }
 
 export function GetByIds(ids: any) {
@@ -29,5 +29,5 @@ export function GetByIds(ids: any) {
 }
 
 export function GetAll() {
-  return requestClient.get(`${apiPrefix}/all`);
+  return requestClient.post(`${apiPrefix}/all`);
 }

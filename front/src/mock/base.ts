@@ -183,7 +183,7 @@ const mockUtil: any = {
       },
       {
         path: "/mock/" + name + "/get",
-        method: "get",
+        method: "post",
         handle(req: any) {
           let id = req.params.id ?? req.body?.id;
           id = parseInt(id);

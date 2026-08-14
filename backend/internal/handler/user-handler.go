@@ -26,11 +26,11 @@ func UserHandlersRegister(app *fiber.App, svcCtx *svc.ServiceContext) {
 	authRoutes.Post("/login", auth.Require(svcCtx.Auth, auth.Guest), loginUser(svcCtx))
 
 	users := app.Group("/api/users")
-	users.Post("/", auth.Require(svcCtx.Auth, auth.Admin), createUser(svcCtx))
-	users.Get("/", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
-	users.Get("/:id", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
-	users.Put("/:id", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
-	users.Delete("/:id", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
+	users.Post("/create", auth.Require(svcCtx.Auth, auth.Admin), createUser(svcCtx))
+	users.Post("/list", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
+	users.Post("/:id/detail", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
+	users.Post("/:id/update", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
+	users.Post("/:id/delete", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
 }
 
 // registerUser godoc
@@ -107,7 +107,7 @@ func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
 // @Failure 409 {object} ErrorResponse
-// @Router /api/users [post]
+// @Router /api/users/create [post]
 func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		var input logic.CreateUserInput
@@ -131,7 +131,7 @@ func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Success 200 {object} UserListResponse
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
-// @Router /api/users [get]
+// @Router /api/users/list [post]
 func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		users, err := logic.NewUserService(c.Context(), svcCtx).List()
@@ -154,7 +154,7 @@ func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Router /api/users/{id} [get]
+// @Router /api/users/{id}/detail [post]
 func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)
@@ -183,7 +183,7 @@ func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Router /api/users/{id} [put]
+// @Router /api/users/{id}/update [post]
 func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)
@@ -224,7 +224,7 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
-// @Router /api/users/{id} [delete]
+// @Router /api/users/{id}/delete [post]
 func deleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		id, err := parseUserID(c)

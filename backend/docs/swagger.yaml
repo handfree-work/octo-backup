@@ -131,70 +131,8 @@ paths:
       summary: 注册用户
       tags:
       - 认证
-  /api/users:
-    get:
-      description: 需要 read、write 或 admin 权限。
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handler.UserListResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - bearerAuth: []
-      summary: 获取用户列表
-      tags:
-      - 用户
+  /api/users/{id}/delete:
     post:
-      consumes:
-      - application/json
-      description: 需要 admin 权限，可设置 admin、write 或 read 角色。
-      parameters:
-      - description: 用户信息
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/logic.CreateUserInput'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/handler.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/handler.ErrorResponse'
-      security:
-      - bearerAuth: []
-      summary: 创建用户
-      tags:
-      - 用户
-  /api/users/{id}:
-    delete:
       description: 需要 admin 权限。
       parameters:
       - description: 用户 ID
@@ -228,7 +166,8 @@ paths:
       summary: 删除用户
       tags:
       - 用户
-    get:
+  /api/users/{id}/detail:
+    post:
       description: 需要 read、write 或 admin 权限。
       parameters:
       - description: 用户 ID
@@ -264,7 +203,8 @@ paths:
       summary: 获取用户详情
       tags:
       - 用户
-    put:
+  /api/users/{id}/update:
+    post:
       consumes:
       - application/json
       description: 需要 write 或 admin 权限；非管理员只能更新自己的资料且不能修改角色。
@@ -306,6 +246,69 @@ paths:
       security:
       - bearerAuth: []
       summary: 更新用户
+      tags:
+      - 用户
+  /api/users/create:
+    post:
+      consumes:
+      - application/json
+      description: 需要 admin 权限，可设置 admin、write 或 read 角色。
+      parameters:
+      - description: 用户信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/logic.CreateUserInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handler.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户
+  /api/users/list:
+    post:
+      description: 需要 read、write 或 admin 权限。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - bearerAuth: []
+      summary: 获取用户列表
       tags:
       - 用户
 schemes:

@@ -348,7 +348,7 @@ export function createLocalMockApiPlugin(): Plugin {
             (pathname === '/api/auth/codes' ||
               pathname === '/api/user/info' ||
               pathname === '/api/menu/all') &&
-            method === 'GET'
+            method === 'POST'
           ) {
             const user = getUserFromAccessToken(request);
             if (!user) {
@@ -376,7 +376,7 @@ export function createLocalMockApiPlugin(): Plugin {
 
           if (
             mockPathname === '/mock/dicts/OpenStatusEnum' &&
-            method === 'GET'
+            method === 'POST'
           ) {
             jsonResponse(
               response,
@@ -408,7 +408,7 @@ export function createLocalMockApiPlugin(): Plugin {
           );
           if (mock) {
             const params = getRequestParams(request);
-            const body = method === 'GET' ? params : await readJsonBody(request);
+            const body = await readJsonBody(request);
             const result = await mock.handle({
               body,
               params,

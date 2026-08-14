@@ -245,8 +245,8 @@ export default async function ({ crudExpose, context }: CreateCrudOptionsProps):
             getData({ dict }) {
               // 覆盖全局获取字典请求配置
               utils.logger.info(`我是从自定义的getData方法中加载的数据字典`, dict);
-              return requestClient.get('/mock/dicts/OpenStatusEnum', {
-                params: { cache: true },
+              return requestClient.post('/mock/dicts/OpenStatusEnum', {
+                cache: true,
               });
             }
           }),

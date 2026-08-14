@@ -34,6 +34,7 @@
 
 - 后端 Swagger UI 固定提供在 `/swagger/`，OpenAPI JSON 固定提供在 `/swagger/doc.json`。
 - 新增或变更后端接口时，同步维护 handler 的 Swagger 注释并在 `backend` 目录执行 `swag init --generalInfo app.go --output docs --parseInternal`，提交生成的 `docs/` 文件。
+- 除 Swagger 文档及静态资源外，前后端业务 API 统一使用 `POST`；同一资源的不同操作通过明确的动作子路径区分，不注册 `GET`、`PUT` 或 `DELETE` 业务路由。
 
 ## 规范回顾
 
