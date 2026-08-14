@@ -1,4 +1,4 @@
-package handler
+package basic
 
 import (
 	"encoding/json"
@@ -38,8 +38,8 @@ const swaggerIndex = `<!doctype html>
 </body>
 </html>`
 
-// SwaggerHandlersRegister 注册 Swagger UI 与 OpenAPI JSON 文档。
-func SwaggerHandlersRegister(app *fiber.App) {
+// Register 注册 basic 模块的 Swagger UI 与 OpenAPI JSON 文档。
+func Register(app *fiber.App) {
 	app.Get("/swagger", func(c fiber.Ctx) error {
 		return c.Redirect().Status(fiber.StatusMovedPermanently).To("/swagger/index.html")
 	})
@@ -89,30 +89,4 @@ func swaggerAsset(c fiber.Ctx) error {
 		c.Set(fiber.HeaderContentType, contentType)
 	}
 	return c.Send(content)
-}
-
-// ErrorResponse 表示接口错误响应。
-type ErrorResponse struct {
-	Error string `json:"error" example:"没有访问权限"`
-}
-
-// UserResponse 表示单个用户的成功响应。
-type UserResponse struct {
-	Data map[string]any `json:"data"`
-}
-
-// UserListResponse 表示用户列表的成功响应。
-type UserListResponse struct {
-	Data struct {
-		Items []map[string]any `json:"items"`
-	} `json:"data"`
-}
-
-// LoginResponse 表示登录成功响应。
-type LoginResponse struct {
-	Data struct {
-		Token     string         `json:"token"`
-		ExpiresAt int64          `json:"expiresAt"`
-		User      map[string]any `json:"user"`
-	} `json:"data"`
 }

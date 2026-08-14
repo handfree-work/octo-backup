@@ -78,7 +78,7 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
-	if err := db_.Migrate(database, &models.User{}); err != nil {
+	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
 		return
 	}
@@ -86,8 +86,7 @@ func main() {
 	app := fiber.New()
 	app.Use(recover.New())
 	app.Use(log_.HTTPMiddleware())
-	handler.SwaggerHandlersRegister(app)
-	handler.UserHandlersRegister(app, &svc.ServiceContext{Db: database, Auth: authConfig})
+	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig})
 	app.Get("/*", static.New("./static/public"))
 
 	log_.Logger.Info("web-restic 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))

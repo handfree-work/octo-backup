@@ -1,4 +1,4 @@
-package handler
+package user
 
 import (
 	"errors"
@@ -9,18 +9,10 @@ import (
 	"handfree-work/web-restic/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/gofiber/fiber/v3/middleware/recover"
 )
 
-func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
-	app := fiber.New()
-	app.Use(recover.New())
-	SwaggerHandlersRegister(app)
-	UserHandlersRegister(app, svcCtx)
-	return app
-}
-
-func UserHandlersRegister(app *fiber.App, svcCtx *svc.ServiceContext) {
+// Register 注册认证与用户管理接口。
+func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
 	authRoutes := app.Group("/api/auth")
 	authRoutes.Post("/register", auth.Require(svcCtx.Auth, auth.Guest), registerUser(svcCtx))
 	authRoutes.Post("/login", auth.Require(svcCtx.Auth, auth.Guest), loginUser(svcCtx))
@@ -259,4 +251,30 @@ func writeUserError(c fiber.Ctx, err error) error {
 
 func writeError(c fiber.Ctx, status int, message string) error {
 	return c.Status(status).JSON(fiber.Map{"error": message})
+}
+
+// ErrorResponse 表示接口错误响应。
+type ErrorResponse struct {
+	Error string `json:"error" example:"没有访问权限"`
+}
+
+// UserResponse 表示单个用户的成功响应。
+type UserResponse struct {
+	Data map[string]any `json:"data"`
+}
+
+// UserListResponse 表示用户列表的成功响应。
+type UserListResponse struct {
+	Data struct {
+		Items []map[string]any `json:"items"`
+	} `json:"data"`
+}
+
+// LoginResponse 表示登录成功响应。
+type LoginResponse struct {
+	Data struct {
+		Token     string         `json:"token"`
+		ExpiresAt int64          `json:"expiresAt"`
+		User      map[string]any `json:"user"`
+	} `json:"data"`
 }

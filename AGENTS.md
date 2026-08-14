@@ -22,6 +22,8 @@
 - 数据库：SQLite3
 - SQLite 驱动需支持 `CGO_ENABLED=0` 构建，确保本地和 Docker 环境无需 C 编译器即可运行。
 - 部署：Docker Compose
+- 后端 handler 按职责放在 `internal/handler/basic`、`internal/handler/user`、`internal/handler/sys` 子包，根 `handler` 包只负责统一装配。
+- `sys_setting` 是仅供内部使用的系统配置表，字段固定为 `id`、`key`、`setting`，不对外提供 CRUD 接口。
 
 ## 日志与权限
 
