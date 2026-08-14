@@ -20,6 +20,7 @@
 - 后端：Go Fiber + Go ORM （轻量级，单实例运行即可）
 - 前端：Vue 3 + TypeScript + antdv
 - 数据库：SQLite3
+- SQLite 驱动需支持 `CGO_ENABLED=0` 构建，确保本地和 Docker 环境无需 C 编译器即可运行。
 - 部署：Docker Compose
 
 ## 规范回顾
