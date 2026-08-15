@@ -16,10 +16,11 @@ function copyList(originList: any, newList: any, options: any, parentId?: any) {
 }
 
 function delById(req: any, list: any) {
-  const id = req?.params?.id ?? req?.body?.id;
   for (let i = 0; i < list.length; i++) {
     const item = list[i];
-    if (item.id === parseInt(id)) {
+    console.log("remove i", i, req, req.params.id, item.id);
+    if (item.id === parseInt(req.params.id)) {
+      console.log("remove i", i);
       list.splice(i, 1);
       break;
     }
@@ -68,7 +69,7 @@ const mockUtil: any = {
     return [
       {
         path: "/mock/" + name + "/page",
-        method: "post",
+        method: "get",
         handle(req: any) {
           let data = [...list];
           let limit = 20;
@@ -81,7 +82,7 @@ const mockUtil: any = {
           }
           let orderProp: any, orderAsc: any;
           if (req && req.body) {
-            const { page = {}, sort = {} } = req.body;
+            const { page, sort } = req.body;
             let query = req.body.query;
             if (page.limit != null) {
               limit = parseInt(page.limit);
@@ -183,9 +184,9 @@ const mockUtil: any = {
       },
       {
         path: "/mock/" + name + "/get",
-        method: "post",
+        method: "get",
         handle(req: any) {
-          let id = req.params.id ?? req.body?.id;
+          let id = req.params.id;
           id = parseInt(id);
           const current = findById(id, list);
           return {

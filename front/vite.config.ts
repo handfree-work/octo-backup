@@ -1,169 +1,111 @@
-import path from 'node:path';
-import process from 'node:process';
+import vue from "@vitejs/plugin-vue";
+import vueJsx from "@vitejs/plugin-vue-jsx";
+import visualizer from "rollup-plugin-visualizer";
+import viteCompression from "vite-plugin-compression";
+import { createHtmlPlugin } from "vite-plugin-html";
+import { loadEnv } from "vite";
+import * as path from "path";
+import DefineOptions from "unplugin-vue-define-options/vite";
+// import WindiCSS from "vite-plugin-windicss";
+// import { generateModifyVars } from "./build/modify-vars";
+// import { configThemePlugin } from "./build/theme-plugin";
+// import OptimizationPersist from "vite-plugin-optimize-persist";
+// import PkgConfig from "vite-plugin-package-config";
+// https://vitejs.dev/config/
+// 增加环境变量 _
+process.env.VITE_APP_VERSION = require("./package.json").version;
+process.env.VITE_APP_BUILD_TIME = require("dayjs")().format("YYYY-M-D HH:mm:ss");
 
-import tailwindcss from '@tailwindcss/vite';
-import vue from '@vitejs/plugin-vue';
-import vueJsx from '@vitejs/plugin-vue-jsx';
-import { defineConfig, loadEnv } from 'vite';
+import { theme } from "ant-design-vue";
 
-import { createLocalMockApiPlugin } from './vite.mock';
+const { defaultAlgorithm, defaultSeed } = theme;
 
-const root = process.cwd();
-const vbenPackagesRoot = path.resolve(root, 'src/vben-packages');
+const mapToken = defaultAlgorithm(defaultSeed);
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, root);
-  let devAlias = [];
-  let devServerFs = {};
-
-  if (mode.startsWith('debug')) {
+export default ({ command, mode }) => {
+  console.log("args", command, mode);
+  const env = loadEnv(mode, process.cwd());
+  let devServerFs: any = {};
+  let devAlias: any[] = [];
+  if (mode.startsWith("debug")) {
     devAlias = [
-      {
-        find: /@fast-crud\/fast-crud\/dist/,
-        replacement: path.resolve('../../fast-crud/src'),
-      },
-      {
-        find: /@fast-crud\/ui-antdv-next\/dist/,
-        replacement: path.resolve('../../ui/ui-antdv-next/src'),
-      },
+      { find: /@fast-crud\/fast-crud\/dist/, replacement: path.resolve("../../fast-crud/src/") },
+      // { find: /@fast-crud\/fast-crud$/, replacement: path.resolve("../../fast-crud/src/") },
+      { find: /@fast-crud\/fast-extends\/dist/, replacement: path.resolve("../../fast-extends/src/") },
+      // { find: /@fast-crud\/fast-extends$/, replacement: path.resolve("../../fast-extends/src/") },
+      // { find: /@fast-crud\/ui-antdv$/, replacement: path.resolve("../../ui/ui-antdv/src/") },
+      // { find: /@fast-crud\/ui-interface$/, replacement: path.resolve("../../ui/ui-interface/src/") }
+      { find: /@fast-crud\/ui-antdv4\/dist/, replacement: path.resolve("../../ui/ui-antdv4/src/") }
     ];
     devServerFs = {
-      allow: ['../../../'],
+      // 这里配置dev启动时读取的项目根目录
+      allow: ["../../../"]
     };
-    console.log('devAlias', devAlias);
+    console.log("devAlias", devAlias);
   }
-
   return {
+    base: "/antdv4/",
     plugins: [
-      vue(),
+      DefineOptions(),
       vueJsx(),
-      tailwindcss(),
-      ...(env.VITE_NITRO_MOCK === 'true' ? [createLocalMockApiPlugin()] : []),
-    ],
-    resolve: {
-      alias: [
-        ...devAlias,
-        { find: '#', replacement: path.resolve(root, 'src') },
-        {
-          find: /^@vben\/common-ui\/es\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben/common-ui/components/$1`,
-        },
-        {
-          find: '@vben/styles/antdv-next',
-          replacement: `${vbenPackagesRoot}/@vben/styles/antdv-next/index.css`,
-        },
-        {
-          find: '@vben/tailwind-config/theme',
-          replacement: `${vbenPackagesRoot}/@vben/tailwind-config/theme.css`,
-        },
-        {
-          find: '@vben-core/design/bem',
-          replacement: `${vbenPackagesRoot}/@vben-core/design/less-bem/bem.less`,
-        },
-        {
-          find: '@vben-core/design/theme',
-          replacement: `${vbenPackagesRoot}/@vben-core/design/css/global.css`,
-        },
-        {
-          find: /^@vben\/plugins\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben/plugins/$1/index.ts`,
-        },
-        {
-          find: /^@vben\/styles\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben/styles/$1`,
-        },
-        {
-          find: /^@vben\/tailwind-config\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben/tailwind-config/$1`,
-        },
-        {
-          find: /^@vben-core\/design\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben-core/design/$1`,
-        },
-        {
-          find: /^@vben-core\/([^/]+)\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben-core/$1/$2`,
-        },
-        {
-          find: /^@vben\/([^/]+)\/(.+)$/,
-          replacement: `${vbenPackagesRoot}/@vben/$1/$2`,
-        },
-        { find: '@vben/access', replacement: `${vbenPackagesRoot}/@vben/access/index.ts` },
-        { find: '@vben/common-ui', replacement: `${vbenPackagesRoot}/@vben/common-ui/index.ts` },
-        { find: '@vben/constants', replacement: `${vbenPackagesRoot}/@vben/constants/index.ts` },
-        { find: '@vben/hooks', replacement: `${vbenPackagesRoot}/@vben/hooks/index.ts` },
-        { find: '@vben/icons', replacement: `${vbenPackagesRoot}/@vben/icons/index.ts` },
-        { find: '@vben/layouts', replacement: `${vbenPackagesRoot}/@vben/layouts/index.ts` },
-        { find: '@vben/locales', replacement: `${vbenPackagesRoot}/@vben/locales/index.ts` },
-        { find: '@vben/plugins', replacement: `${vbenPackagesRoot}/@vben/plugins/index.ts` },
-        { find: '@vben/preferences', replacement: `${vbenPackagesRoot}/@vben/preferences/index.ts` },
-        { find: '@vben/request', replacement: `${vbenPackagesRoot}/@vben/request/index.ts` },
-        { find: '@vben/stores', replacement: `${vbenPackagesRoot}/@vben/stores/index.ts` },
-        { find: '@vben/styles', replacement: `${vbenPackagesRoot}/@vben/styles/index.ts` },
-        {
-          find: '@vben/tailwind-config',
-          replacement: `${vbenPackagesRoot}/@vben/tailwind-config/index.ts`,
-        },
-        { find: '@vben/types', replacement: `${vbenPackagesRoot}/@vben/types/index.ts` },
-        { find: '@vben/utils', replacement: `${vbenPackagesRoot}/@vben/utils/index.ts` },
-        { find: '@vben-core/design', replacement: `${vbenPackagesRoot}/@vben-core/design/index.ts` },
-        { find: '@vben-core/icons', replacement: `${vbenPackagesRoot}/@vben-core/icons/index.ts` },
-        { find: '@vben-core/shared', replacement: `${vbenPackagesRoot}/@vben-core/shared/index.ts` },
-        { find: '@vben-core/typings', replacement: `${vbenPackagesRoot}/@vben-core/typings/index.ts` },
-        {
-          find: '@vben-core/composables',
-          replacement: `${vbenPackagesRoot}/@vben-core/composables/index.ts`,
-        },
-        {
-          find: '@vben-core/preferences',
-          replacement: `${vbenPackagesRoot}/@vben-core/preferences/index.ts`,
-        },
-        { find: '@vben-core/form-ui', replacement: `${vbenPackagesRoot}/@vben-core/form-ui/index.ts` },
-        {
-          find: '@vben-core/layout-ui',
-          replacement: `${vbenPackagesRoot}/@vben-core/layout-ui/index.ts`,
-        },
-        { find: '@vben-core/menu-ui', replacement: `${vbenPackagesRoot}/@vben-core/menu-ui/index.ts` },
-        { find: '@vben-core/popup-ui', replacement: `${vbenPackagesRoot}/@vben-core/popup-ui/index.ts` },
-        {
-          find: '@vben-core/shadcn-ui',
-          replacement: `${vbenPackagesRoot}/@vben-core/shadcn-ui/index.ts`,
-        },
-        { find: '@vben-core/tabs-ui', replacement: `${vbenPackagesRoot}/@vben-core/tabs-ui/index.ts` },
-      ],
-    },
-    define: {
-      __APP_ENV__: JSON.stringify(env.VITE_APP_ENV),
-    },
-    server: {
-      host: true,
-      port: Number(env.VITE_PORT) || 5320,
-      warmup: {
-        clientFiles: [
-          './index.html',
-          './src/main.ts',
-          './src/bootstrap.ts',
-          './src/{views,layouts,router,store,api,adapter}/*',
-        ],
-      },
-      fs: devServerFs,
-      ...(env.VITE_API_PROXY_TARGET && env.VITE_NITRO_MOCK !== 'true'
-        ? {
-            proxy: {
-              '/api': {
-                changeOrigin: true,
-                target: env.VITE_API_PROXY_TARGET,
-                ws: true,
-              },
-            },
+      vue(),
+      createHtmlPlugin({
+        inject: {
+          data: {
+            title: env.VITE_APP_TITLE,
+            projectPath: env.VITE_APP_PROJECT_PATH
           }
-        : {}),
+        }
+      }),
+      // 压缩build后的代码
+      viteCompression()
+      //主题色替换
+      //...configThemePlugin(true),
+      // viteThemePlugin({
+      //   // Match the color to be modified
+      //   colorVariables: ["#1890ff", "#40a9ff"]
+      // }),
+      // windicss tailwindcss
+      // WindiCSS()
+    ],
+    esbuild: {
+      drop: command === "build" ? ["debugger"] : [],
+      pure: ["console.log", "debugger"],
+      jsxFactory: "h",
+      jsxFragment: "Fragment"
+    },
+    resolve: {
+      alias: [...devAlias, { find: "/@", replacement: path.resolve("./src") }, { find: "/#", replacement: path.resolve("./types") }],
+      dedupe: ["vue"]
+    },
+    optimizeDeps: {
+      include: ["ant-design-vue"]
     },
     build: {
-      chunkSizeWarningLimit: 2000,
-      reportCompressedSize: false,
-      sourcemap: false,
-      target: 'es2020',
+      rollupOptions: {
+        plugins: [visualizer()]
+      }
     },
+    css: {
+      preprocessorOptions: {
+        less: {
+          // 修改默认主题颜色，配置less变量
+          // modifyVars: generateModifyVars(),
+          javascriptEnabled: true
+          // modifyVars: mapToken
+        }
+      }
+    },
+    server: {
+      port: 3002,
+      fs: devServerFs,
+      proxy: {
+        // with options
+        "/api": {
+          //配套后端 https://github.com/fast-crud/fs-server-js
+          target: "http://127.0.0.1:7001"
+        }
+      }
+    }
   };
-});
+};

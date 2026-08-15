@@ -1,3 +1,11 @@
-dist
 node_modules
-.turbo
+.DS_Store
+dist
+dist-ssr
+*.local
+/stats.html
+yarn.lock
+.idea
+/.idea/
+yarn-error.log
+vite-profile.cpuprofile

@@ -1,31 +1,43 @@
-import { initPreferences } from '@vben/preferences';
-import { unmountGlobalLoading } from '@vben/utils';
+import { createApp } from "vue";
+import App from "./App.vue";
+// import Antd from "ant-design-vue";
+import Antd from "./plugin/antdv-async/index";
+import "./style/common.less";
+import i18n from "./i18n";
+import components from "./components";
+import router from "./router";
+import plugin from "./plugin/";
+// 正式项目请删除mock，避免影响性能
+import "./mock";
+import { setupVben } from "./vben";
+import { util } from "/@/utils";
+import { initPreferences } from "/@/vben/preferences";
+// @ts-ignore
+async function bootstrap() {
+  const app = createApp(App);
+  // app.use(Antd);
+  app.use(Antd);
+  await setupVben(app);
+  app.use(router);
+  app.use(i18n);
+  // app.use(store);
+  app.use(components);
+  app.use(plugin, { i18n });
 
-import { overridesPreferences } from './preferences';
-
-/**
- * 应用初始化完成之后再进行页面加载渲染
- */
-async function initApplication() {
-  // name用于指定项目唯一标识
-  // 用于区分不同项目的偏好设置以及存储数据的key前缀以及其他一些需要隔离的数据
-  const env = import.meta.env.PROD ? 'prod' : 'dev';
-  const appVersion = import.meta.env.VITE_APP_VERSION;
-  const namespace = `${import.meta.env.VITE_APP_NAMESPACE}-${appVersion}-${env}`;
+  const envMode = util.env.MODE;
+  const namespace = `${import.meta.env.VITE_APP_NAMESPACE}-${envMode}`;
 
   // app偏好设置初始化
   await initPreferences({
     namespace,
-    overrides: overridesPreferences,
+    overrides: {
+      app: {
+        name: import.meta.env.VITE_APP_TITLE
+      }
+    }
   });
 
-  // 启动应用并挂载
-  // vue应用主要逻辑及视图
-  const { bootstrap } = await import('./bootstrap');
-  await bootstrap(namespace);
-
-  // 移除并销毁loading
-  unmountGlobalLoading();
+  app.mount("#app");
 }
 
-initApplication();
+bootstrap();
