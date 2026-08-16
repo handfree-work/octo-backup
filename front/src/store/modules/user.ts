@@ -37,7 +37,7 @@ export const useUserStore = defineStore({
     }
   },
   actions: {
-    setToken(token: string, expire: number) {
+    setToken(token: string, expire = 60 * 60 * 24 * 7) {
       this.token = token;
       const accessStore = useAccessStore();
       accessStore.setAccessToken(token);
@@ -57,25 +57,19 @@ export const useUserStore = defineStore({
      * @description: login
      */
     async login(params: LoginReq): Promise<any> {
-      try {
-        const data = await UserApi.login(params);
-        const { token, expire } = data;
+      const data = await UserApi.login(params);
+      const expiresIn = data.expiresAt ? Math.max(1, data.expiresAt - Math.floor(Date.now() / 1000)) : undefined;
 
-        // save token
-        this.setToken(token, expire);
-        // get user info
-        const userInfo = await this.getUserInfoAction();
-        await router.replace("/");
-        mitter.emit("app.login", { userInfo, token: data });
-        return userInfo;
-      } catch (error) {
-        return null;
-      }
+      this.setToken(data.token, expiresIn);
+      this.setUserInfo(data.user);
+      const accessStore = useAccessStore();
+      accessStore.setAccessCodes([data.user.role]);
+      await router.replace("/");
+      mitter.emit("app.login", { userInfo: data.user, token: data.token });
+      return data.user;
     },
     async getUserInfoAction(): Promise<UserInfoRes> {
-      const userInfo = await UserApi.mine();
-      this.setUserInfo(userInfo);
-      return userInfo;
+      return this.getUserInfo;
     },
     /**
      * @description: logout

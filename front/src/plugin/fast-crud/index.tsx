@@ -8,7 +8,6 @@ import UiAntdv from "@fast-crud/ui-antdv4";
 import "@fast-crud/ui-antdv4/dist/style.css";
 import { merge } from "lodash-es";
 import { useCrudPermission } from "../permission";
-import { GetSignedUrl } from "/@/views/crud/component/uploader/s3/api";
 import { notification } from "ant-design-vue";
 import { usePreferences } from "/@/vben/preferences";
 import { columnSizeSaver } from "/@/plugin/fast-crud/column-size-saver";
@@ -267,33 +266,6 @@ function install(app: any, options: any = {}) {
         return ret;
       },
       domain: "http://d2p.file.handsfree.work/"
-    },
-    s3: {
-      keepName: true,
-      //同时也支持minio
-      bucket: "fast-crud",
-      sdkOpts: {
-        s3ForcePathStyle: true,
-        signatureVersion: "v4",
-        region: "us-east-1",
-        forcePathStyle: true,
-        //minio与s3完全适配
-        endpoint: "https://play.min.io",
-        credentials: {
-          //不建议在客户端使用secretAccessKey来上传， 生产部署请使用getSignedUrl，来获取授权
-          accessKeyId: "Q3AM3UQ867SPQQA43P2F", //访问登录名
-          secretAccessKey: "zuf+tfteSlswRu7BJ86wekitnifILbZam1KYY3TG" //访问密码
-        }
-      },
-      //预签名配置，向后端获取上传的预签名连接（生产部署推荐）
-      async getSignedUrl(bucket: string, key: string, options: any, type: FsUploaderS3SignedUrlType = "put") {
-        return await GetSignedUrl(bucket, key, type);
-      },
-      successHandle(ret: any) {
-        // 上传完成后可以在此处处理结果，修改url什么的
-        console.log("success handle:", ret);
-        return ret;
-      }
     },
     form: {
       keepName: true,

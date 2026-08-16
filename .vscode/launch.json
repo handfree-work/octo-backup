@@ -1,0 +1,38 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "frontend",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "pnpm dev",
+      "cwd": "${workspaceFolder}/front",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "backend",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/backend",
+      "cwd": "${workspaceFolder}/backend",
+      "args": [
+        "-mode",
+        "dev",
+        "-config",
+        "./etc"
+      ],
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "all",
+      "configurations": [
+        "backend",
+        "frontend"
+      ],
+      "stopAll": true
+    }
+  ]
+}

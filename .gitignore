@@ -1,5 +1,6 @@
 node_modules
 dist
 .history
-.vscode
+.vscode/*
+!.vscode/launch.json
 backend/data/

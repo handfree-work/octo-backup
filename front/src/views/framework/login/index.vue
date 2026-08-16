@@ -66,19 +66,16 @@
       </a-form-item>
 
       <a-form-item class="user-login-other">
-        <!--        <router-link class="register" :to="{ name: 'index' }"> 注册 </router-link>-->
+        <router-link class="register" :to="{ name: 'register' }"> 注册 </router-link>
       </a-form-item>
     </a-form>
   </div>
 </template>
 <script lang="ts">
-import { defineComponent, reactive, ref, toRaw, computed } from "vue";
+import { defineComponent, reactive, ref, computed } from "vue";
 import { useUserStore } from "/src/store/modules/user";
 import { utils } from "@fast-crud/fast-crud";
-import * as UserApi from "/@/api/modules/api.user";
-import router from "/@/router";
-import { mitter } from "/@/utils/util.mitt";
-import { useAccessStore } from "/@/vben/stores";
+import { message } from "ant-design-vue";
 export default defineComponent({
   name: "LoginPage",
   setup() {
@@ -133,11 +130,14 @@ export default defineComponent({
       }
     };
 
-    const handleFinish = async (values: any) => {
-      utils.logger.log(values, formState);
+    const handleFinish = async () => {
       loading.value = true;
+      isLoginError.value = false;
       try {
-        const userInfo = await userStore.login(toRaw(formState));
+        await userStore.login({ username: formState.username, password: formState.password });
+      } catch (error: any) {
+        isLoginError.value = true;
+        message.error(error?.message || "登录失败，请检查用户名和密码");
       } finally {
         loading.value = false;
       }

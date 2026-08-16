@@ -1,6 +1,6 @@
 export default [
   {
-    path: "/login",
+    path: "/auth/login",
     method: "post",
     handle() {
       return {
@@ -8,14 +8,20 @@ export default [
         msg: "success",
         data: {
           token: "faker token",
-          expire: 10000
+          expiresAt: Math.floor(Date.now() / 1000) + 604800,
+          user: {
+            id: 1,
+            username: "admin",
+            nickName: "admin",
+            role: "admin"
+          }
         }
       };
     }
   },
   {
-    path: "/sys/authority/user/mine",
-    method: "get",
+    path: "/auth/register",
+    method: "post",
     handle() {
       return {
         code: 0,
@@ -23,7 +29,7 @@ export default [
         data: {
           id: 1,
           username: "username",
-          nickName: "admin"
+          role: "read"
         }
       };
     }

@@ -24,7 +24,7 @@
       </a-form-item>
 
       <a-form-item>
-        <a-button type="primary" size="large" html-type="submit" class="login-button">注册</a-button>
+        <a-button type="primary" size="large" html-type="submit" :loading="loading" class="login-button">注册</a-button>
       </a-form-item>
 
       <a-form-item class="user-login-other">
@@ -34,17 +34,20 @@
   </div>
 </template>
 <script lang="ts">
-import { defineComponent, reactive, ref, toRaw } from "vue";
-import { useUserStore } from "/src/store/modules/user";
+import { defineComponent, reactive, ref } from "vue";
+import * as UserApi from "/@/api/modules/api.user";
+import router from "/@/router";
 import { utils } from "@fast-crud/fast-crud";
+import { message } from "ant-design-vue";
 export default defineComponent({
   name: "RegisterPage",
   setup() {
-    const userStore = useUserStore();
+    const loading = ref(false);
     const formRef = ref();
-    const formState: any = reactive({
+    const formState = reactive({
       username: "",
-      password: ""
+      password: "",
+      confirmPassword: ""
     });
 
     const rules = {
@@ -67,6 +70,14 @@ export default defineComponent({
           required: true,
           trigger: "change",
           message: "请确认密码"
+        },
+        {
+          validator: async (_rule: unknown, value: string) => {
+            if (value && value !== formState.password) {
+              throw new Error("两次输入的密码不一致");
+            }
+          },
+          trigger: "change"
         }
       ]
     };
@@ -79,14 +90,17 @@ export default defineComponent({
       }
     };
 
-    const handleFinish = async (values: any) => {
-      utils.logger.log(values, formState);
-      const userInfo = await userStore.login(
-        toRaw({
-          password: formState.password,
-          username: formState.username
-        })
-      );
+    const handleFinish = async () => {
+      loading.value = true;
+      try {
+        await UserApi.register({ username: formState.username, password: formState.password });
+        message.success("注册成功，请登录");
+        await router.replace({ name: "login" });
+      } catch (error: any) {
+        message.error(error?.message || "注册失败，请稍后重试");
+      } finally {
+        loading.value = false;
+      }
     };
 
     const handleFinishFailed = (errors: any) => {
@@ -99,6 +113,7 @@ export default defineComponent({
 
     return {
       formState,
+      loading,
       formRef,
       rules,
       layout,

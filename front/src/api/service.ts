@@ -1,9 +1,12 @@
 import axios from "axios";
 import { get } from "lodash-es";
 import Adapter from "axios-mock-adapter";
-import { errorLog, errorCreate } from "./tools";
+import { errorLog } from "./tools";
 import { env } from "/src/utils/util.env";
 import { useUserStore } from "../store/modules/user";
+import { unpackResponseData } from "./response";
+
+export { unpackResponseData } from "./response";
 /**
  * @description 创建请求实例
  */
@@ -25,44 +28,21 @@ function createService() {
       if (response.config.responseType === "blob") {
         return response;
       }
-      // dataAxios 是 axios 返回数据中的 data
-      const dataAxios = response.data;
-      // 这个状态码是和后端约定的
-      const { code } = dataAxios;
-      // 根据 code 进行判断
-      if (code === undefined) {
-        // 如果没有 code 代表这不是项目后端开发的接口 比如可能是 D2Admin 请求最新版本
-        errorCreate(`非标准返回：${dataAxios}， ${response.config.url}`);
-        return dataAxios;
-      } else {
-        // 有 code 代表这是一个后端接口 可以进行进一步的判断
-        switch (code) {
-          case 0:
-            // [ 示例 ] code === 0 代表没有错误
-            // @ts-ignore
-            if (response.config.unpack === false) {
-              //如果不需要解包
-              return dataAxios;
-            }
-            return dataAxios.data;
-          default:
-            // 不是正确的 code
-            errorCreate(`${dataAxios.msg}: ${response.config.url}`);
-            return dataAxios;
-        }
-      }
+      // 同时兼容旧 mock 的 { code: 0, data } 和 Go 后端的 { data }。
+      return unpackResponseData(response.data, (response.config as any).unpack !== false);
     },
     (error) => {
       const status = get(error, "response.status");
+      const backendMessage = get(error, "response.data.error");
       switch (status) {
         case 400:
-          error.message = "请求错误";
+          error.message = backendMessage || "请求错误";
           break;
         case 401:
-          error.message = "未授权，请登录";
+          error.message = backendMessage || "未授权，请登录";
           break;
         case 403:
-          error.message = "拒绝访问";
+          error.message = backendMessage || "拒绝访问";
           break;
         case 404:
           error.message = `请求地址出错: ${error.response.config.url}`;
@@ -120,9 +100,12 @@ function createRequestFunction(service: any) {
     const token = userStore.getToken;
     if (token != null) {
       // @ts-ignore
-      configDefault.headers.Authorization = token;
+      configDefault.headers.Authorization = `Bearer ${token}`;
     }
-    return service(Object.assign(configDefault, config));
+    const requestConfig = Object.assign({}, configDefault, config, {
+      headers: Object.assign({}, configDefault.headers, config.headers || {})
+    });
+    return service(requestConfig);
   };
 }
 
