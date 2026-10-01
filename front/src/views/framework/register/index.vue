@@ -35,7 +35,7 @@
 </template>
 <script lang="ts">
 import { defineComponent, reactive, ref } from "vue";
-import * as UserApi from "/@/api/modules/api.user";
+import * as UserApi from "/@/views/framework/auth/api";
 import router from "/@/router";
 import { utils } from "@fast-crud/fast-crud";
 import { message } from "ant-design-vue";

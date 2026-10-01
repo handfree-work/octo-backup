@@ -1,10 +1,10 @@
 package user
 
 import (
-	"errors"
 	"strconv"
 
 	"handfree-work/web-restic/internal/auth"
+	"handfree-work/web-restic/internal/base/web_"
 	logic "handfree-work/web-restic/internal/service"
 	"handfree-work/web-restic/internal/svc"
 
@@ -13,16 +13,14 @@ import (
 
 // Register 注册认证与用户管理接口。
 func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
-	authRoutes := app.Group("/api/auth")
-	authRoutes.Post("/register", auth.Require(svcCtx.Auth, auth.Guest), registerUser(svcCtx))
-	authRoutes.Post("/login", auth.Require(svcCtx.Auth, auth.Guest), loginUser(svcCtx))
-
-	users := app.Group("/api/users")
+	users := app.Group("/api/user")
 	users.Post("/create", auth.Require(svcCtx.Auth, auth.Admin), createUser(svcCtx))
 	users.Post("/list", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
-	users.Post("/:id/detail", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
-	users.Post("/:id/update", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
-	users.Post("/:id/delete", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
+	users.Post("/page", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
+	users.Post("/info", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
+	users.Post("/update", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
+	users.Post("/delete", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
+	users.Post("/batchDelete", auth.Require(svcCtx.Auth, auth.Admin), batchDeleteUser(svcCtx))
 }
 
 // createUser godoc
@@ -49,7 +47,7 @@ func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err != nil {
 			return writeUserError(c, err)
 		}
-		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": user})
+		return web_.Success(c, user)
 	}
 }
 
@@ -65,11 +63,15 @@ func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Router /api/users/list [post]
 func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		users, err := logic.NewUserService(c.Context(), svcCtx).List()
+		var query logic.UserPageQuery
+		if err := c.Bind().Body(&query); err != nil {
+			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+		}
+		page, err := logic.NewUserService(c.Context(), svcCtx).FindPage(&query)
 		if err != nil {
 			return writeUserError(c, err)
 		}
-		return c.JSON(fiber.Map{"data": fiber.Map{"items": users}})
+		return web_.Success(c, page)
 	}
 }
 
@@ -96,7 +98,7 @@ func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err != nil {
 			return writeUserError(c, err)
 		}
-		return c.JSON(fiber.Map{"data": user})
+		return web_.Success(c, user)
 	}
 }
 
@@ -139,7 +141,7 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err != nil {
 			return writeUserError(c, err)
 		}
-		return c.JSON(fiber.Map{"data": user})
+		return web_.Success(c, user)
 	}
 }
 
@@ -165,31 +167,38 @@ func deleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err := logic.NewUserService(c.Context(), svcCtx).Delete(id); err != nil {
 			return writeUserError(c, err)
 		}
-		return c.SendStatus(fiber.StatusNoContent)
+		return web_.Success(c, fiber.Map{})
+	}
+}
+
+func batchDeleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var input struct {
+			IDs []int64 `json:"ids"`
+		}
+		if err := c.Bind().Body(&input); err != nil || len(input.IDs) == 0 {
+			return writeError(c, fiber.StatusBadRequest, "用户 ID 不能为空")
+		}
+		service := logic.NewUserService(c.Context(), svcCtx)
+		for _, id := range input.IDs {
+			if err := service.Delete(id); err != nil {
+				return writeUserError(c, err)
+			}
+		}
+		return web_.Success(c, fiber.Map{})
 	}
 }
 
 func parseUserID(c fiber.Ctx) (int64, error) {
-	return strconv.ParseInt(c.Params("id"), 10, 64)
+	return strconv.ParseInt(c.Query("id"), 10, 64)
 }
 
 func writeUserError(c fiber.Ctx, err error) error {
-	switch {
-	case errors.Is(err, logic.ErrInvalidUser):
-		return writeError(c, fiber.StatusBadRequest, err.Error())
-	case errors.Is(err, logic.ErrUserNotFound):
-		return writeError(c, fiber.StatusNotFound, err.Error())
-	case errors.Is(err, logic.ErrUsernameExists):
-		return writeError(c, fiber.StatusConflict, err.Error())
-	case errors.Is(err, logic.ErrInvalidLogin):
-		return writeError(c, fiber.StatusUnauthorized, err.Error())
-	default:
-		return writeError(c, fiber.StatusInternalServerError, "服务器内部错误")
-	}
+	return web_.BusinessError(c, err)
 }
 
 func writeError(c fiber.Ctx, status int, message string) error {
-	return c.Status(status).JSON(fiber.Map{"error": message})
+	return web_.Error(c, status, message)
 }
 
 // ErrorResponse 表示接口错误响应。

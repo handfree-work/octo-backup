@@ -107,6 +107,9 @@ importers:
       cross-env:
         specifier: ^7.0.3
         version: 7.0.3
+      crypto-js:
+        specifier: ^4.2.0
+        version: 4.2.0
       cssnano:
         specifier: ^7.0.6
         version: 7.1.9(postcss@8.5.26)
@@ -219,6 +222,9 @@ importers:
       '@types/chai':
         specifier: ^4.3.12
         version: 4.3.20
+      '@types/crypto-js':
+        specifier: ^4.2.2
+        version: 4.2.2
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
@@ -2131,6 +2137,9 @@ packages:
 
   '@types/chai@4.3.20':
     resolution: {integrity: sha512-/pC9HAB5I/xMlc5FP77qjCnI16ChlJfW0tGa0IUcFn38VJrTV6DeZ60NU5KZBtaOZqjdpwTWohz5HU1RrhiYxQ==}
+
+  '@types/crypto-js@4.2.2':
+    resolution: {integrity: sha512-sDOLlVbHhXpAUAL0YHDUUwDZf3iN4Bwi4W6a0W0b+QcAezUbRtH4FVb+9J4h+XFPW7l/gQ9F8qC7P+Ec4k8QVQ==}
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
@@ -8367,6 +8376,8 @@ snapshots:
       '@types/chai': 4.3.20
 
   '@types/chai@4.3.20': {}
+
+  '@types/crypto-js@4.2.2': {}
 
   '@types/estree@1.0.9': {}
 

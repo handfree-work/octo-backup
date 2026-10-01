@@ -13,48 +13,22 @@ export const sysResources = [
     },
     children: [
       {
-        title: "权限管理",
-        name: "authority",
-        path: "/sys/authority",
-        redirect: "/sys/authority/permission",
-        meta: {
-          icon: "ion:ribbon-outline",
-          //需要校验权限
-          permission: "sys:auth"
-        },
-        children: [
-          {
-            title: "权限资源管理",
-            name: "permission",
-            meta: {
-              icon: "ion:list-outline",
-              //需要校验权限
-              permission: "sys:auth:per:view"
-            },
-            path: "/sys/authority/permission",
-            component: "/sys/authority/permission/index.vue"
-          },
-          {
-            title: "角色管理",
-            name: "role",
-            meta: {
-              icon: "ion:people-outline",
-              permission: "sys:auth:role:view"
-            },
-            path: "/sys/authority/role",
-            component: "/sys/authority/role/index.vue"
-          }
-        ]
-      },
-      {
         title: "用户管理",
         name: "user",
         meta: {
           icon: "ion:person-outline",
-          permission: "sys:auth:user:view"
+          // 用户管理属于管理员功能，管理员角色可访问所有更低级别权限。
+          permission: "admin"
         },
         path: "/sys/authority/user",
         component: "/sys/authority/user/index.vue"
+      }
+      ,{
+        title: "存储仓库",
+        name: "repository",
+        meta: { icon: "ion:server-outline", permission: "read" },
+        path: "/sys/repository",
+        component: "/sys/repository/index.vue"
       }
     ]
   }

@@ -4,9 +4,9 @@ import router from "../../router";
 // @ts-ignore
 import { LocalStorage } from "/src/utils/util.storage";
 // @ts-ignore
-import * as UserApi from "/src/api/modules/api.user";
+import * as UserApi from "/src/views/framework/auth/api";
 // @ts-ignore
-import { LoginReq, UserInfoRes } from "/@/api/modules/api.user";
+import { LoginReq, UserInfoRes } from "/@/views/framework/auth/api";
 import { Modal } from "ant-design-vue";
 import { useI18n } from "vue-i18n";
 

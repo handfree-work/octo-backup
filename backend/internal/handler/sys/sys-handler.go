@@ -8,4 +8,4 @@ import (
 )
 
 // Register 预留系统模块的路由装配入口。
-func Register(_ *fiber.App, _ *svc.ServiceContext) {}
+func Register(app *fiber.App, svcCtx *svc.ServiceContext) { RegisterRepository(app, svcCtx) }

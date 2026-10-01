@@ -24,6 +24,7 @@
 - 部署：Docker Compose
 - 后端 handler 按职责放在 `internal/handler/basic`、`internal/handler/user`、`internal/handler/sys` 子包，根 `handler` 包只负责统一装配。
 - handler 文件按 `<module>-handler.go` 命名（例如 `user-handler.go`、`auth-handler.go`），单元测试文件使用对应的 `<module>-handler_test.go` 并与目标文件放在同一目录。
+- 用户管理 handler 放在 `backend/internal/handler/sys/authority`，认证 handler 放在 `backend/internal/handler/basic`。
 - `sys_setting` 是仅供内部使用的系统配置表，字段固定为 `id`、`key`、`setting`，不对外提供 CRUD 接口。
 
 ## 日志与权限
@@ -39,9 +40,21 @@
 - 后端 Swagger UI 固定提供在 `/swagger/`，OpenAPI JSON 固定提供在 `/swagger/doc.json`。
 - 新增或变更后端接口时，同步维护 handler 的 Swagger 注释并在 `backend` 目录执行 `swag init --generalInfo app.go --output docs --parseInternal`，提交生成的 `docs/` 文件。
 - 除 Swagger 文档及静态资源外，前后端业务 API 统一使用 `POST`；同一资源的不同操作通过明确的动作子路径区分，不注册 `GET`、`PUT` 或 `DELETE` 业务路由。
+- 业务接口统一使用 `POST` 和 `application/json`；响应固定为 `{code: 0, message: "成功", data: {}}`，`code=0` 表示成功，`code>0` 表示业务失败。无论业务成功或失败，HTTP 状态码统一返回 `200`；前端统一解析 `code` 和 `message`。
+- 所有业务数据必须放在 `data` 字段内；分页数据统一使用 `{offset, limit, records, total}` 结构，service 层分页查询使用 `FindPage` 方法。
+- 前端业务 API 文件就近放置在对应功能模块目录（例如用户模块使用 `views/sys/authority/user/api.ts`），不再集中放入全局 API 模块目录。
+- 登录、注册等认证 API 统一放置在 `views/framework/auth/api.ts`；用户管理模块 API 仅包含用户数据的增删改查。
+- 前端登录、注册及用户密码变更请求在发送前使用 MD5 对密码做一次 hash；密码为空时不发送密码字段，表示不修改。
+- 用户资源使用单数路径 `/api/user`；业务动作路径固定为 `/create`、`/update`、`/delete?id=`、`/info?id=`、`/list`、`/page`、`/batchDelete`，统一使用 POST。
+- 存储仓库管理页面使用 `views/sys/repository`，对应后端资源路径为 `/api/repository`；仓库密码只写入不回显，更新时空密码表示不修改。
 
 ## 规范回顾
 
 - 每次任务收尾时，回顾用户提出的要求，识别其中可跨任务复用、稳定且不与既有规范冲突的约束。
 - 将这些共性要求精炼后更新本文件；一次性的任务细节、临时偏好和未经确认的推断不写入长期规范。
 - 更新后检查规则是否清晰、可执行且没有重复或互相矛盾的表述。
+
+## 开发与验证
+
+- 开发完成后不自动启动前端、后端或组合服务；由用户根据 VS Code 调试配置或项目命令自行启动和验证。
+- 交付时说明已执行的自动化检查、构建结果以及未解决的既有问题。

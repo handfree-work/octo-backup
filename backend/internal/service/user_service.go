@@ -38,6 +38,18 @@ type LoginInput struct {
 	Password string `json:"password"`
 }
 
+type UserPageQuery struct {
+	Offset int64 `json:"offset"`
+	Limit  int64 `json:"limit"`
+}
+
+type UserPageResult struct {
+	Offset  int64          `json:"offset"`
+	Limit   int64          `json:"limit"`
+	Records []*models.User `json:"records"`
+	Total   int64          `json:"total"`
+}
+
 type UserService struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
@@ -118,6 +130,33 @@ func (l *UserService) List() ([]*models.User, error) {
 	return dao.FindList(&models.User{}, nil)
 }
 
+func (l *UserService) FindPage(query *UserPageQuery) (*UserPageResult, error) {
+	offset, limit := int64(0), int64(20)
+	if query != nil {
+		offset, limit = query.Offset, query.Limit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
+	page := &db_.Page{Start: offset, Limit: limit}
+	rows, err := dao.FindPage(&db_.PageReq[models.User]{Query: &models.User{}, Page: page})
+	if err != nil {
+		return nil, err
+	}
+	records := make([]*models.User, 0, len(*rows))
+	for i := range *rows {
+		records = append(records, &(*rows)[i])
+	}
+	return &UserPageResult{Offset: offset, Limit: limit, Records: records, Total: page.Total}, nil
+}
+
 func (l *UserService) Get(id int64) (*models.User, error) {
 	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
 	user, err := dao.GetById(id)
@@ -159,11 +198,11 @@ func (l *UserService) Update(id int64, in *UpdateUserInput) (*models.User, error
 		user.NickName = strings.TrimSpace(*in.NickName)
 	}
 	if in.Password != nil {
-		if strings.TrimSpace(*in.Password) == "" {
-			return nil, fmt.Errorf("%w: 密码不能为空", ErrInvalidUser)
-		}
-		if err := user.EncryptPassword(*in.Password); err != nil {
-			return nil, fmt.Errorf("加密用户密码: %w", err)
+		password := strings.TrimSpace(*in.Password)
+		if password != "" {
+			if err := user.EncryptPassword(password); err != nil {
+				return nil, fmt.Errorf("加密用户密码: %w", err)
+			}
 		}
 	}
 	if in.Role != nil {

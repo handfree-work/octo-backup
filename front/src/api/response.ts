@@ -10,7 +10,7 @@ export function unpackResponseData(dataAxios: any, unpack = true): any {
     if (dataAxios.code === 0) {
       return dataAxios.data;
     }
-    errorCreate(`${dataAxios.msg || "请求失败"}`);
+    errorCreate(`${dataAxios.message || dataAxios.msg || "请求失败"}`);
     return dataAxios;
   }
 

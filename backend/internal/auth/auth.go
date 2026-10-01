@@ -98,10 +98,10 @@ func Require(config Config, permission string) fiber.Handler {
 		}
 		claims, err := config.Parse(bearerToken(c.Get(fiber.HeaderAuthorization)))
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "未登录或登录已过期"})
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": fiber.StatusUnauthorized, "message": "未登录或登录已过期", "data": fiber.Map{}})
 		}
 		if !HasPermission(claims.Role, permission) {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "没有访问权限"})
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": fiber.StatusForbidden, "message": "没有访问权限", "data": fiber.Map{}})
 		}
 		c.Locals("authClaims", claims)
 		return c.Next()

@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Web Restic · UI 原型</title>
+<style>
+:root{
+  --primary:#1677ff; --primary-hover:#4096ff; --success:#52c41a; --warning:#faad14;
+  --error:#ff4d4f; --text:#000000d9; --text2:#00000073; --text3:#00000040;
+  --border:#f0f0f0; --bg:#f5f5f5; --sidebar:#001529;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;font-size:14px;color:var(--text);background:var(--bg)}
+.hidden{display:none!important}
+button{font-family:inherit;cursor:pointer;border:none;background:none;font-size:14px}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--text);border:1px solid #d9d9d9;border-radius:6px;padding:4px 11px;height:32px;outline:none;width:100%;background:#fff}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);box-shadow:0 0 0 2px #1677ff1a}
+textarea{height:auto;resize:vertical;padding:8px 11px;line-height:1.5}
+label{display:block;margin-bottom:6px;color:var(--text2)}
+.form-item{margin-bottom:16px}
+.req::after{content:" *";color:var(--error)}
+.hint{font-size:12px;color:var(--text3);margin-top:4px}
+
+/* ===== 登录 ===== */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#001529 0%,#0a3d6b 60%,#1677ff 100%)}
+.login-box{width:380px;background:#fff;border-radius:12px;padding:40px 36px;box-shadow:0 12px 40px #0003}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.login-logo .mark{width:40px;height:40px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
+.login-title{font-size:22px;font-weight:600}
+.login-sub{color:var(--text2);margin:4px 0 28px}
+
+/* ===== 布局 ===== */
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--sidebar);color:#ffffffb3;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:20}
+.brand{height:56px;display:flex;align-items:center;gap:10px;padding:0 18px;color:#fff;font-weight:600;font-size:16px;border-bottom:1px solid #ffffff1a}
+.brand .mark{width:30px;height:30px;border-radius:8px;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.menu{flex:1;padding:8px 0;overflow-y:auto}
+.menu .g{padding:10px 20px 4px;font-size:12px;color:#ffffff59}
+.menu-item{display:flex;align-items:center;gap:10px;padding:11px 20px;color:#ffffffb3;cursor:pointer;border-right:3px solid transparent;transition:all .15s}
+.menu-item:hover{color:#fff;background:#ffffff0d}
+.menu-item.active{color:#fff;background:var(--primary);border-right-color:#fff}
+.menu-item svg{width:16px;height:16px;flex:none}
+.side-foot{padding:14px 20px;font-size:12px;color:#ffffff59;border-top:1px solid #ffffff1a}
+
+.main{flex:1;margin-left:220px;display:flex;flex-direction:column;min-width:0}
+.topbar{height:56px;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.crumb{color:var(--text2)}
+.crumb b{color:var(--text);font-weight:600}
+.top-right{display:flex;align-items:center;gap:16px}
+.search-box{width:240px;position:relative}
+.search-box input{padding-left:30px}
+.search-box svg{position:absolute;left:9px;top:9px;width:14px;height:14px;color:var(--text3)}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+.tabs{height:40px;background:#fff;display:flex;align-items:flex-end;padding:0 12px;border-bottom:1px solid var(--border);overflow-x:auto}
+.tab{display:flex;align-items:center;gap:6px;padding:9px 14px;color:var(--text2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:500}
+.tab .x{margin-left:2px;color:var(--text3);font-size:12px;padding:0 3px;border-radius:4px}
+.tab .x:hover{background:#0000000d;color:var(--text)}
+.content{flex:1;padding:16px 20px;max-width:1500px;width:100%;margin:0 auto}
+
+/* ===== 卡片/表格 ===== */
+.card{background:#fff;border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px #00000008}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-h h3{font-size:16px;font-weight:600}
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.toolbar .spacer{flex:1}
+table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th{background:#fafafa;color:var(--text2);font-weight:500;text-align:left;padding:11px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tr:hover td{background:#fafafa}
+.tbl .mono{font-family:Consolas,Menlo,monospace;font-size:12.5px}
+.pager{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding-top:14px;color:var(--text2);font-size:13px}
+.pager button{min-width:28px;height:28px;border:1px solid #d9d9d9;border-radius:6px;background:#fff;color:var(--text)}
+.pager button.on{color:var(--primary);border-color:var(--primary)}
+.pager button:disabled{color:var(--text3);cursor:not-allowed}
+
+/* ===== 按钮 ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 15px;border-radius:6px;font-weight:400;transition:all .15s;border:1px solid transparent;white-space:nowrap}
+.btn-p{background:var(--primary);color:#fff}
+.btn-p:hover{background:var(--primary-hover)}
+.btn-d{background:#fff;border-color:#d9d9d9;color:var(--text)}
+.btn-d:hover{color:var(--primary);border-color:var(--primary)}
+.btn-r{background:#fff;border-color:#d9d9d9;color:var(--error)}
+.btn-r:hover{border-color:var(--error);color:var(--error)}
+.btn-l{color:var(--primary);padding:0 6px;height:auto}
+.btn-l.danger{color:var(--error)}
+.btn-l:hover{opacity:.8}
+.btn-sm{height:26px;padding:0 10px;font-size:13px;border-radius:5px}
+.btn[disabled]{opacity:.55;cursor:not-allowed}
+.btn-b{background:var(--primary);color:#fff}
+.btn-b:hover{background:var(--primary-hover)}
+.btn-w{background:#fff;border:1px solid #d9d9d9;color:var(--text)}
+.btn-w:hover{color:var(--primary);border-color:var(--primary)}
+
+/* ===== 状态 ===== */
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.dot.s{background:var(--success)} .dot.e{background:var(--error)} .dot.w{background:var(--warning)}
+.dot.r{background:var(--primary);animation:pulse 1.2s infinite}
+.dot.g{background:#d9d9d9}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tag{display:inline-block;padding:1px 8px;border-radius:4px;font-size:12px;line-height:20px}
+.tag-blue{background:#e6f4ff;color:#0958d9}.tag-green{background:#f6ffed;color:#389e0d}
+.tag-red{background:#fff1f0;color:#cf1322}.tag-grey{background:#fafafa;color:#595959;border:1px solid #f0f0f0}
+.tag-orange{background:#fff7e6;color:#d46b08}
+
+/* ===== 统计卡 ===== */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:16px}
+.stat{background:#fff;border-radius:8px;padding:18px;box-shadow:0 1px 2px #00000008;cursor:pointer;transition:all .15s}
+.stat:hover{box-shadow:0 4px 12px #00000014;transform:translateY(-2px)}
+.stat .num{font-size:28px;font-weight:700;margin:6px 0 2px}
+.stat .lbl{color:var(--text2);font-size:13px}
+.stat .sub{font-size:12px;color:var(--text3)}
+.stat .ico{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;float:right}
+.stat .ico svg{width:20px;height:20px}
+.grid2{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+
+/* ===== 表单/抽屉 ===== */
+.mask{position:fixed;inset:0;background:#00000045;z-index:50;opacity:0;pointer-events:none;transition:opacity .2s}
+.mask.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:540px;background:#fff;z-index:51;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column;box-shadow:-6px 0 16px #0003}
+.drawer.show{transform:none}
+.drawer-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);font-size:16px;font-weight:600}
+.drawer-h .close{color:var(--text3);font-size:18px;padding:0 4px}
+.drawer-b{flex:1;overflow-y:auto;padding:20px}
+.drawer-f{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+.form-row{display:flex;gap:14px}
+.form-row .form-item{flex:1}
+.switch{display:inline-flex;width:40px;height:22px;border-radius:11px;background:#00000026;position:relative;cursor:pointer;transition:background .2s;vertical-align:-4px}
+.switch.on{background:var(--primary)}
+.switch::after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;top:2px;left:2px;transition:left .2s}
+.switch.on::after{left:20px}
+
+/* ===== Modal ===== */
+.modal-mask{position:fixed;inset:0;background:#00000045;z-index:60;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-mask.show{opacity:1;pointer-events:auto}
+.modal{width:460px;max-width:92vw;background:#fff;border-radius:10px;transform:scale(.92);transition:transform .2s}
+.modal-mask.show .modal{transform:none}
+.modal-h{padding:16px 20px;font-size:16px;font-weight:600;border-bottom:1px solid var(--border)}
+.modal-b{padding:20px}
+.modal-f{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+/* ===== 步骤条 ===== */
+.steps{display:flex;margin-bottom:22px}
+.step{flex:1;text-align:center;position:relative;color:var(--text3);font-size:13px}
+.step::before{content:"";position:absolute;top:14px;left:calc(-50% + 34px);right:calc(50% + 34px);height:2px;background:#f0f0f0}
+.step:first-child::before{display:none}
+.step .c{width:28px;height:28px;border-radius:50%;background:#fff;border:2px solid #d9d9d9;display:inline-flex;align-items:center;justify-content:center;font-size:13px;color:var(--text3);position:relative;z-index:1;margin-bottom:6px}
+.step.on{color:var(--primary)}
+.step.on .c{border-color:var(--primary);color:var(--primary)}
+.step.on::before{background:var(--primary)}
+.step.done{color:var(--text2)}
+.step.done .c{background:var(--primary);border-color:var(--primary);color:#fff}
+.step.done::before{background:var(--primary)}
+
+/* ===== 日志控制台 ===== */
+.run-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.console{background:#0f1420;border-radius:8px;padding:14px 16px;height:340px;overflow-y:auto;font-family:Consolas,Menlo,monospace;font-size:12.5px;line-height:1.75;color:#c9d1d9}
+.console .ln{white-space:pre-wrap;word-break:break-all}
+.console .ln.t{color:#58a6ff}.console .ln.o{color:#7ee787}.console .ln.e{color:#ff7b72}
+.console .ln.dim{color:#6e7681}
+.run-steps{display:flex;flex-direction:column;gap:10px}
+.rs{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:#fafafa;color:var(--text2)}
+.rs .ico{width:18px;height:18px;flex:none}
+.rs.on{border-color:var(--primary);background:#e6f4ff;color:#0958d9}
+.rs.done{border-color:#b7eb8f;background:#f6ffed;color:#389e0d}
+.rs .tm{margin-left:auto;font-size:12px;color:var(--text3);font-family:Consolas,monospace}
+.progress{height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;margin-top:12px}
+.progress i{display:block;height:100%;background:var(--primary);width:0;transition:width .4s}
+.filebar{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text2);margin-top:10px}
+.filebar .bar{flex:1;height:6px;background:#21262d;border-radius:3px;overflow:hidden}
+.filebar .bar i{display:block;height:100%;background:#58a6ff;transition:width .3s}
+
+/* ===== 树 ===== */
+.tree{font-size:13.5px}
+.tnode{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer}
+.tnode:hover{background:#f5f5f5}
+.tnode.sel{background:#e6f4ff}
+.tnode .tw{width:14px;text-align:center;color:var(--text3)}
+.tnode .nm{flex:1;display:flex;gap:8px;align-items:center}
+.tnode .meta{color:var(--text3);font-size:12px}
+.tnode .chk{width:15px;height:15px;border:1.5px solid #d9d9d9;border-radius:4px;flex:none}
+.tnode .chk.on{background:var(--primary);border-color:var(--primary);position:relative}
+.tnode .chk.on::after{content:"✓";color:#fff;font-size:10px;position:absolute;top:-1px;left:2px}
+
+/* ===== 消息 ===== */
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%) translateY(-16px);background:#fff;border-radius:8px;box-shadow:0 6px 16px #0003;padding:10px 18px;z-index:99;opacity:0;pointer-events:none;transition:all .25s;display:flex;gap:8px;align-items:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .ico{color:var(--success)}
+.alert{display:flex;gap:8px;padding:9px 12px;border-radius:6px;font-size:13px;margin-top:12px}
+.alert.warn{background:#fffbe6;border:1px solid #ffe58f;color:#ad6800}
+.empty{padding:44px;text-align:center;color:var(--text3)}
+.empty .big{font-size:40px;margin-bottom:10px}
+kbd{background:#f5f5f5;border:1px solid #d9d9d9;border-radius:4px;padding:0 5px;font-size:12px;font-family:inherit}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录 ============ -->
+<div id="view-login" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo"><div class="mark">R</div><div class="login-title">Web Restic</div></div>
+    <div class="login-sub">远程数据备份管理系统 · UI 原型</div>
+    <div class="form-item"><label>用户名</label><input id="lg-user" value="admin" placeholder="请输入用户名"></div>
+    <div class="form-item"><label>密码</label><input id="lg-pass" type="password" value="admin123" placeholder="请输入密码"></div>
+    <button class="btn btn-b" style="width:100%;height:38px;justify-content:center;margin-top:8px" onclick="doLogin()">登 录</button>
+    <div class="hint" style="text-align:center;margin-top:14px">原型演示：点击登录进入系统（任意账号密码）</div>
+  </div>
+</div>
+
+<!-- ============ 应用框架 ============ -->
+<div id="app" class="app hidden">
+  <aside class="sidebar">
+    <div class="brand"><div class="mark">R</div>Web Restic</div>
+    <nav class="menu" id="menu">
+      <div class="g">总览</div>
+      <div class="menu-item" data-page="dashboard" onclick="nav('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>工作台
+      </div>
+      <div class="g">备份管理</div>
+      <div class="menu-item" data-page="repos" onclick="nav('repos')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>存储仓库
+      </div>
+      <div class="menu-item" data-page="hosts" onclick="nav('hosts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6 6.5h.01M6 17.5h.01"/></svg>主机管理
+      </div>
+      <div class="menu-item" data-page="tasks" onclick="nav('tasks')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>备份任务
+      </div>
+      <div class="menu-item" data-page="runs" onclick="nav('runs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/><circle cx="19" cy="17" r="2" fill="currentColor" stroke="none"/></svg>执行记录
+      </div>
+      <div class="menu-item" data-page="snapshots" onclick="nav('snapshots')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg>备份数据
+      </div>
+      <div class="g">系统</div>
+      <div class="menu-item" data-page="users" onclick="nav('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/><path d="M17 8h5M19.5 5.5v5"/></svg>用户管理
+      </div>
+    </nav>
+    <div class="side-foot">Web Restic v0.1 · UI 原型</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="crumb" id="crumb">工作台</div>
+      <div class="top-right">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="搜索任务 / 主机 / 仓库…">
+        </div>
+        <div class="avatar" title="admin">管</div>
+      </div>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div class="content">
+
+      <!-- ===== 工作台 ===== -->
+      <section class="page" id="page-dashboard">
+        <div class="stats">
+          <div class="stat" onclick="nav('hosts')">
+            <div class="ico" style="background:#e6f4ff;color:#0958d9"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="7" rx="2"/><rect x="2" y="14" width="20" height="7" rx="2"/></svg></div>
+            <div class="lbl">主机总数</div><div class="num">12</div><div class="sub">本周新增 2 · 3 台离线</div>
+          </div>
+          <div class="stat" onclick="nav('repos')">
+            <div class="ico" style="background:#f6ffed;color:#389e0d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/></svg></div>
+            <div class="lbl">存储仓库</div><div class="num">3</div><div class="sub">全部正常</div>
+          </div>
+          <div class="stat" onclick="nav('tasks')">
+            <div class="ico" style="background:#fff7e6;color:#d46b08"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+            <div class="lbl">备份任务</div><div class="num">8</div><div class="sub">启用 5 · 停用 3</div>
+          </div>
+          <div class="stat" onclick="nav('snapshots')">
+            <div class="ico" style="background:#f9f0ff;color:#722ed1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h4l2-3h6l2 3h4v13H3z"/><circle cx="12" cy="13" r="4"/></svg></div>
+            <div class="lbl">快照总数</div><div class="num">1,024</div><div class="sub">近 7 天新增 18</div>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-h"><h3>最近执行记录</h3><a class="btn-l" href="javascript:nav('runs')">全部 ›</a></div>
+            <table class="tbl">
+              <thead><tr><th>任务</th><th>类型</th><th>主机</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+              <tbody id="dash-runs"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>任务状态分布</h3></div>
+            <div style="text-align:center;padding:6px 0 12px">
+              <div style="width:140px;height:140px;border-radius:50%;margin:0 auto;background:conic-gradient(#52c41a 0 78%,#ff4d4f 78% 90%,#d9d9d9 90% 100%);display:flex;align-items:center;justify-content:center"><div style="width:88px;height:88px;border-radius:50%;background:#fff;display:flex;flex-direction:column;justify-content:center"><b style="font-size:22px">78%</b><span style="font-size:12px;color:#999">成功率</span></div></div>
+            </div>
+            <div style="display:flex;justify-content:center;gap:18px;font-size:13px;color:var(--text2)">
+              <span><span class="dot s"></span>成功 78</span>
+              <span><span class="dot e"></span>失败 12</span>
+              <span><span class="dot g"></span>其他 10</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 存储仓库 ===== -->
+      <section class="page hidden" id="page-repos">
+        <div class="card">
+          <div class="toolbar">
+            <input style="width:180px" placeholder="名称" id="repo-q">
+            <select style="width:130px"><option>全部类型</option><option>local</option><option>sftp</option><option>minio</option><option>s3</option><option>azure</option><option>b2</option></select>
+            <select style="width:120px"><option>全部状态</option><option>正常</option><option>错误</option></select>
+            <button class="btn btn-d" onclick="toast('原型演示：查询')">查询</button>
+            <button class="btn btn-d" onclick="toast('原型演示：重置')">重置</button>
+            <div class="spacer"></div>
+            <button class="btn btn-p" onclick="openRepoDrawer()">＋ 新增仓库</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>名称</th><th>类型</th><th>地址</th><th>状态</th><th>最近检查</th><th style="width:230px">操作</th></tr></thead>
+            <tbody id="repo-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 3 条</span><button>‹</button><button class="on">1</button><button>›</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 主机管理 ===== -->
+      <section class="page hidden" id="page-hosts">
+        <div class="card">
+          <div class="toolbar">
+            <input style="width:180px" placeholder="名称 / IP">
+            <select style="width:130px"><option>全部平台</option><option>Linux</option><option>Windows</option><option>macOS</option></select>
+            <select style="width:120px"><option>全部状态</option><option>正常</option><option>错误</option></select>
+            <button class="btn btn-d">查询</button>
+            <div class="spacer"></div>
+            <button class="btn btn-p" onclick="openHostDrawer()">＋ 新增主机</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>名称</th><th>地址</th><th>SSH 用户</th><th>平台 / 架构</th><th>状态</th><th>最近检查</th><th style="width:260px">操作</th></tr></thead>
+            <tbody id="host-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 12 条</span><button>‹</button><button class="on">1</button><button>2</button><button>3</button><button>›</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 备份任务 ===== -->
+      <section class="page hidden" id="page-tasks">
+        <div class="card">
+          <div class="toolbar">
+            <input style="width:180px" placeholder="任务名称">
+            <select style="width:140px"><option>全部主机</option><option>web-01</option><option>db-02</option><option>win-01</option></select>
+            <select style="width:140px"><option>全部仓库</option><option>prod-s3</option><option>nas-01</option></select>
+            <select style="width:120px"><option>全部状态</option><option>启用</option><option>停用</option></select>
+            <button class="btn btn-d">查询</button>
+            <div class="spacer"></div>
+            <button class="btn btn-p" onclick="openTaskDrawer()">＋ 新建任务</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>任务名称</th><th>主机</th><th>仓库</th><th>计划</th><th>调度</th><th>最近执行</th><th style="width:280px">操作</th></tr></thead>
+            <tbody id="task-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 8 条</span><button>‹</button><button class="on">1</button><button>›</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 执行日志页 ===== -->
+      <section class="page hidden" id="page-runlog">
+        <div class="card">
+          <div class="run-head">
+            <button class="btn btn-d" onclick="nav('tasks')">← 返回任务</button>
+            <h3 id="run-title" style="font-size:16px">执行记录 #1024 · web-daily</h3>
+            <span id="run-status"></span>
+            <span class="hint" id="run-meta" style="margin-top:0"></span>
+            <div class="spacer" style="flex:1"></div>
+            <button class="btn btn-d btn-sm" onclick="toast('已复制日志')">复制日志</button>
+            <button class="btn btn-d btn-sm" onclick="toast('日志已下载')">下载日志</button>
+          </div>
+          <div style="display:grid;grid-template-columns:300px 1fr;gap:16px;margin-top:16px">
+            <div>
+              <div style="font-weight:600;margin-bottom:10px;font-size:13px;color:var(--text2)">执行步骤</div>
+              <div class="run-steps" id="run-steps"></div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                <span style="font-weight:600;font-size:13px;color:var(--text2)">实时输出（SSE）</span>
+                <label style="display:flex;align-items:center;gap:6px;font-size:13px;margin:0"><input type="checkbox" id="autoscroll" checked style="width:auto"> 自动滚动</label>
+              </div>
+              <div class="console" id="console"></div>
+              <div class="filebar" id="filebar" style="display:none">
+                <span style="color:#58a6ff">backup</span>
+                <div class="bar"><i id="filebar-i"></i></div>
+                <span id="filebar-t">0 / 0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 执行记录 ===== -->
+      <section class="page hidden" id="page-runs">
+        <div class="card">
+          <div class="toolbar">
+            <select style="width:120px"><option>全部类型</option><option>备份</option><option>恢复</option></select>
+            <select style="width:120px"><option>全部状态</option><option>运行中</option><option>成功</option><option>失败</option></select>
+            <input style="width:200px" placeholder="开始时间 ~ 结束时间">
+            <button class="btn btn-d">查询</button>
+            <div class="spacer"></div>
+            <button class="btn btn-d" onclick="toast('列表已刷新')">刷新</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>类型</th><th>任务</th><th>主机</th><th>状态</th><th>触发</th><th>开始</th><th>结束</th><th style="width:90px">操作</th></tr></thead>
+            <tbody id="runs-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 96 条</span><button>‹</button><button class="on">1</button><button>2</button><button>…</button><button>10</button><button>›</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 备份数据（快照） ===== -->
+      <section class="page hidden" id="page-snapshots">
+        <div class="card">
+          <div class="toolbar">
+            <select style="width:160px" id="snap-repo"><option>全部仓库</option><option>prod-s3</option><option>nas-01</option></select>
+            <select style="width:150px"><option>全部主机</option><option>web-01</option><option>db-02</option><option>win-01</option></select>
+            <input style="width:170px" placeholder="时间范围">
+            <input style="width:130px" placeholder="标签">
+            <button class="btn btn-d">查询</button>
+            <div class="spacer"></div>
+            <button class="btn btn-d" onclick="openForgetModal()">清理快照</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>快照 ID</th><th>时间</th><th>主机</th><th>仓库</th><th>标签</th><th>大小</th><th>文件数</th><th style="width:210px">操作</th></tr></thead>
+            <tbody id="snap-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 1,024 条</span><button>‹</button><button class="on">1</button><button>…</button><button>103</button><button>›</button></div>
+        </div>
+      </section>
+
+      <!-- ===== 用户管理 ===== -->
+      <section class="page hidden" id="page-users">
+        <div class="card">
+          <div class="toolbar">
+            <input style="width:180px" placeholder="用户名">
+            <select style="width:130px"><option>全部角色</option><option>admin</option><option>write</option><option>read</option></select>
+            <button class="btn btn-d">查询</button>
+            <div class="spacer"></div>
+            <button class="btn btn-p" onclick="toast('原型演示：新建用户')">＋ 新增用户</button>
+          </div>
+          <table class="tbl">
+            <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>角色</th><th>创建时间</th><th style="width:140px">操作</th></tr></thead>
+            <tbody id="user-tbody"></tbody>
+          </table>
+          <div class="pager"><span>共 6 条</span><button>‹</button><button class="on">1</button><button>›</button></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ 抽屉：仓库 ============ -->
+<div class="mask" id="mask" onclick="closeDrawers()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-h"><span id="drawer-title">新增仓库</span><span class="close" onclick="closeDrawers()">✕</span></div>
+  <div class="drawer-b">
+    <!-- 仓库表单 -->
+    <div id="form-repo">
+      <div class="form-item"><label class="req">名称</label><input id="f-repo-name" placeholder="如 prod-s3"></div>
+      <div class="form-item"><label class="req">后端类型</label>
+        <select id="f-repo-type" onchange="repoTypeChanged()">
+          <option value="minio">MinIO（兼容 S3）</option><option value="s3">Amazon S3</option>
+          <option value="local">本地路径（local）</option><option value="sftp">SFTP</option>
+          <option value="azure">Azure Blob</option><option value="b2">Backblaze B2</option>
+        </select>
+      </div>
+      <div class="form-item"><label class="req">地址</label><input id="f-repo-addr" value="s3:backup-bucket:/web" placeholder="仓库地址 / URL"></div>
+      <div id="repo-fields">
+        <div class="form-row">
+          <div class="form-item"><label>Bucket</label><input value="backup-bucket"></div>
+          <div class="form-item"><label>AccessKey</label><input value="minioadmin"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-item"><label>SecretKey</label><input type="password" value="********"></div>
+          <div class="form-item"><label>Endpoint</label><input value="http://minio:9000"></div>
+        </div>
+      </div>
+      <div class="form-item"><label class="req">仓库密码（restic）</label><input type="password" id="f-repo-pass" value="********"></div>
+      <div class="form-item"><label>附加参数</label><textarea rows="3" placeholder='{"region": "us-east-1", "hardlink": true}'></textarea></div>
+      <div class="form-item"><label>备注</label><input placeholder="生产环境 MinIO"></div>
+    </div>
+    <!-- 主机表单 -->
+    <div id="form-host" class="hidden">
+      <div class="form-item"><label class="req">名称</label><input placeholder="如 web-01"></div>
+      <div class="form-row">
+        <div class="form-item"><label class="req">IP / 域名</label><input value="10.0.0.11"></div>
+        <div class="form-item"><label>SSH 端口</label><input value="22"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label class="req">SSH 用户名</label><input value="root"></div>
+        <div class="form-item"><label>认证方式</label>
+          <select onchange="document.getElementById('host-pass-row').style.display=this.value==='password'?'':'none'">
+            <option value="password">密码</option><option value="key">私钥</option>
+          </select>
+        </div>
+      </div>
+      <div id="host-pass-row"><div class="form-item"><label>密码</label><input type="password" value="********"></div></div>
+      <div class="form-row">
+        <div class="form-item"><label class="req">平台</label><select><option>Linux</option><option>Windows</option><option>macOS</option><option>FreeBSD</option></select></div>
+        <div class="form-item"><label class="req">架构</label><select><option>amd64</option><option>arm64</option><option>386</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-item"><label>restic 目录</label><input value="~/.restic-web"></div>
+        <div class="form-item"><label>工作目录</label><input value="~/.restic-web/run"></div>
+      </div>
+      <div class="form-item"><label>备注</label><input placeholder="生产 Web 节点"></div>
+    </div>
+    <!-- 任务向导 -->
+    <div id="form-task" class="hidden">
+      <div class="steps" id="task-steps">
+        <div class="step on" data-s="0"><div class="c">1</div>基本信息</div>
+        <div class="step" data-s="1"><div class="c">2</div>备份内容</div>
+        <div class="step" data-s="2"><div class="c">3</div>计划与保留</div>
+        <div class="step" data-s="3"><div class="c">4</div>确认</div>
+      </div>
+      <div id="ts-0">
+        <div class="form-item"><label class="req">任务名称</label><input id="f-task-name" value="web-daily" placeholder="如 web-daily"></div>
+        <div class="form-row">
+          <div class="form-item"><label class="req">目标主机</label><select><option>web-01 · 10.0.0.11</option><option>db-02 · 10.0.0.12</option><option>win-01 · 10.0.0.21</option></select></div>
+          <div class="form-item"><label class="req">存储仓库</label><select><option>prod-s3 · MinIO</option><option>nas-01 · sftp</option></select></div>
+        </div>
+        <div class="form-item"><label>备注</label><input placeholder="每日 Web 数据备份"></div>
+      </div>
+      <div id="ts-1" class="hidden">
+        <div class="form-item"><label class="req">源路径</label>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px"><input value="/etc"><button class="btn btn-d btn-sm">✕</button></div>
+            <div style="display:flex;gap:8px"><input value="/var/www"><button class="btn btn-d btn-sm">✕</button></div>
+            <button class="btn btn-d btn-sm" style="align-self:flex-start" onclick="toast('已添加一行')">＋ 添加路径</button>
+          </div>
+        </div>
+        <div class="form-item"><label>排除路径</label><input placeholder="如 *.log, /tmp"></div>
+        <div class="form-row">
+          <div class="form-item"><label>标签</label><input value="web, prod"></div>
+          <div class="form-item"><label>排除文件</label><input placeholder="主机上的规则文件（可选）"></div>
+        </div>
+        <div class="form-item"><label>附加参数</label><input placeholder="restic 附加参数，如 --one-file-system"></div>
+      </div>
+      <div id="ts-2" class="hidden">
+        <div class="form-item"><label>调度计划</label>
+          <div style="display:flex;gap:16px;align-items:center">
+            <label style="display:flex;gap:6px;margin:0"><input type="radio" name="sch" checked> 手动</label>
+            <label style="display:flex;gap:6px;margin:0"><input type="radio" name="sch"> Cron</label>
+            <input value="0 2 * * *" style="width:150px;margin-left:6px" placeholder="0 2 * * *">
+            <span class="hint" style="margin-top:0">每天 02:00</span>
+          </div>
+        </div>
+        <div class="form-item"><label>启用调度 <span class="switch on" onclick="this.classList.toggle('on')"></span></label></div>
+        <div class="form-item"><label class="req">保留策略（restic forget）</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px 16px">
+            <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" checked style="width:auto"> keep-last <input style="width:56px" value="7"></label>
+            <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" checked style="width:auto"> keep-daily <input style="width:56px" value="30"></label>
+            <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto"> keep-weekly <input style="width:56px" value="12"></label>
+            <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto"> keep-monthly <input style="width:56px" value="12"></label>
+          </div>
+        </div>
+      </div>
+      <div id="ts-3" class="hidden">
+        <table class="tbl" style="font-size:13px">
+          <tbody>
+            <tr><td style="width:90px;color:var(--text2)">任务名称</td><td>web-daily</td></tr>
+            <tr><td style="color:var(--text2)">主机 / 仓库</td><td>web-01 · 10.0.0.11 ／ prod-s3</td></tr>
+            <tr><td style="color:var(--text2)">源路径</td><td>/etc, /var/www</td></tr>
+            <tr><td style="color:var(--text2)">计划</td><td>手动 + Cron 0 2 * * *（启用）</td></tr>
+            <tr><td style="color:var(--text2)">保留策略</td><td>last 7 / daily 30</td></tr>
+          </tbody>
+        </table>
+        <div class="alert warn">创建后将立即注册到调度器；手动触发请到任务列表点击「立即执行」。</div>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-f" id="drawer-foot"></div>
+</div>
+
+<!-- ============ Modal：测试连接 ============ -->
+<div class="modal-mask" id="test-modal">
+  <div class="modal">
+    <div class="modal-h">连接测试</div>
+    <div class="modal-b" id="test-body"></div>
+    <div class="modal-f"><button class="btn btn-w" onclick="closeModal('test-modal')">关闭</button></div>
+  </div>
+</div>
+
+<!-- ============ Modal：恢复向导 ============ -->
+<div class="modal-mask" id="restore-modal">
+  <div class="modal">
+    <div class="modal-h">从快照恢复</div>
+    <div class="modal-b">
+      <div class="form-item"><label>快照</label><input value="a1b2c3d4 (08-02 02:05) · web-01" readonly></div>
+      <div class="form-item"><label>源路径（空 = 整个快照）</label><input value="/var/www/html" placeholder="空 = 整个快照"></div>
+      <div class="form-row">
+        <div class="form-item"><label class="req">目标主机</label><select><option>web-01 · 10.0.0.11</option><option>db-02 · 10.0.0.12</option></select></div>
+        <div class="form-item"><label class="req">恢复路径</label><input value="/data/restore/html"></div>
+      </div>
+      <div class="alert warn">⚠ 恢复将覆盖目标路径下同名文件，请确认数据安全。</div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-w" onclick="closeModal('restore-modal')">取消</button>
+      <button class="btn btn-b" onclick="closeModal('restore-modal');startRun('restore')">开始恢复</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal：清理快照 ============ -->
+<div class="modal-mask" id="forget-modal">
+  <div class="modal">
+    <div class="modal-h">清理快照（forget）</div>
+    <div class="modal-b">
+      <div class="form-item"><label>方式</label>
+        <label style="display:flex;gap:6px;margin:0 0 8px"><input type="radio" name="fg" checked style="width:auto"> 按保留策略</label>
+        <label style="display:flex;gap:6px;margin:0"><input type="radio" name="fg" style="width:auto"> 手动选择快照</label>
+      </div>
+      <div class="form-item"><label>保留</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input style="width:90px" value="keep-last 7"><input style="width:90px" value="keep-daily 30"><input style="width:100px" value="keep-weekly 12">
+        </div>
+      </div>
+      <div class="form-item"><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto"> 同时执行 <kbd>prune</kbd>（回收空间，耗时较长）</label></div>
+      <div class="alert warn">⚠ 清理不可恢复，将删除不符合保留策略的快照。</div>
+    </div>
+    <div class="modal-f">
+      <button class="btn btn-w" onclick="closeModal('forget-modal')">取消</button>
+      <button class="btn btn-r" onclick="closeModal('forget-modal');startRun('forget');toast('清理任务已提交')">确认清理</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal：删除确认 ============ -->
+<div class="modal-mask" id="confirm-modal">
+  <div class="modal">
+    <div class="modal-h">操作确认</div>
+    <div class="modal-b" id="confirm-body"></div>
+    <div class="modal-f">
+      <button class="btn btn-w" onclick="closeModal('confirm-modal')">取消</button>
+      <button class="btn btn-r" onclick="confirmYes()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Modal：快照文件树 ============ -->
+<div class="modal-mask" id="tree-modal">
+  <div class="modal" style="width:680px">
+    <div class="modal-h">快照 a1b2c3d4 · web-01 · <span style="font-weight:400;color:var(--text2)">/var/www</span></div>
+    <div class="modal-b">
+      <div class="toolbar" style="margin-bottom:8px">
+        <span style="color:var(--text2);font-size:13px">路径：/var/www/html</span>
+        <div class="spacer"></div>
+        <button class="btn btn-d btn-sm" onclick="toast('已刷新目录')">刷新</button>
+      </div>
+      <div class="tree" id="snap-tree" style="max-height:340px;overflow-y:auto"></div>
+    </div>
+    <div class="modal-f">
+      <span style="margin-right:auto;color:var(--text2);font-size:13px">已选：<b id="tree-sel">/var/www/html（目录）</b></span>
+      <button class="btn btn-w" onclick="closeModal('tree-modal')">关闭</button>
+      <button class="btn btn-b" onclick="closeModal('tree-modal');openModal('restore-modal')">恢复所选路径</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="ico">✔</span><span id="toast-txt"></span></div>
+
+<script>
+/* ================= 数据 ================= */
+const REPOS=[
+ {name:'prod-s3',type:'minio',addr:'s3:backup-bucket:/web',st:'ok',check:'2 分钟前'},
+ {name:'nas-01',type:'sftp',addr:'sftp:u@nas:/backup',st:'ok',check:'1 小时前'},
+ {name:'test-local',type:'local',addr:'/data/backup',st:'err',check:'昨天 18:02'},
+];
+const HOSTS=[
+ {name:'web-01',ip:'10.0.0.11',user:'root',pf:'Linux',arch:'amd64',st:'ok',check:'5 分钟前'},
+ {name:'db-02',ip:'10.0.0.12',user:'admin',pf:'Linux',arch:'arm64',st:'ok',check:'5 分钟前'},
+ {name:'win-01',ip:'10.0.0.21',user:'adm',pf:'Windows',arch:'amd64',st:'err',check:'昨天'},
+ {name:'mon-01',ip:'10.0.0.31',user:'root',pf:'Linux',arch:'amd64',st:'ok',check:'12 分钟前'},
+ {name:'backup-01',ip:'10.0.0.41',user:'root',pf:'Linux',arch:'386',st:'ok',check:'半小时前'},
+];
+const TASKS=[
+ {name:'web-daily',host:'web-01',repo:'prod-s3',sch:'0 2 * * *',on:true,last:'成功 · 08-02 02:05'},
+ {name:'db-weekly',host:'db-02',repo:'nas-01',sch:'0 3 * * 1',on:true,last:'失败 · 08-01 01:00'},
+ {name:'manual-backup',host:'win-01',repo:'prod-s3',sch:'仅手动',on:false,last:'—'},
+ {name:'web-nginx-log',host:'web-01',repo:'nas-01',sch:'0 */6 * * *',on:true,last:'成功 · 今天 00:00'},
+];
+const RUNS=[
+ {id:1024,type:'备份',task:'web-daily',host:'web-01',st:'run',trg:'cron',start:'02:00:00',end:'—'},
+ {id:1023,type:'恢复',task:'—',host:'web-02',st:'ok',trg:'manual',start:'01:30:00',end:'01:33:12'},
+ {id:1022,type:'备份',task:'db-weekly',host:'db-02',st:'err',trg:'cron',start:'01:00:00',end:'01:01:02'},
+ {id:1021,type:'备份',task:'web-nginx-log',host:'web-01',st:'ok',trg:'cron',start:'00:00:00',end:'00:08:44'},
+];
+const SNAPS=[
+ {id:'a1b2c3d4',time:'08-02 02:05',host:'web-01',repo:'prod-s3',tag:'web',size:'1.2 GB',files:'12,034'},
+ {id:'e4f5g6h7',time:'08-01 02:05',host:'web-01',repo:'prod-s3',tag:'web',size:'1.1 GB',files:'12,011'},
+ {id:'8a9b0c1d',time:'08-01 01:00',host:'db-02',repo:'nas-01',tag:'db',size:'4.6 GB',files:'2,301'},
+];
+const USERS=[
+ {id:1,name:'admin',nick:'系统管理员',role:'admin',time:'2025-01-01'},
+ {id:2,name:'ops-wang',nick:'王工',role:'write',time:'2025-02-11'},
+ {id:3,name:'dev-li',nick:'李工',role:'read',time:'2025-03-02'},
+];
+const DASH=[
+ {task:'web-daily',type:'备份',host:'web-01',st:'ok',time:'08-02 02:05'},
+ {task:'db-weekly',type:'备份',host:'db-02',st:'err',time:'08-01 01:00'},
+ {task:'web-nginx-log',type:'备份',host:'web-01',st:'ok',time:'今天 00:00'},
+];
+
+/* ================= 工具 ================= */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function statusHtml(st){
+ const m={ok:['s','正常'],run:['r','运行中'],err:['e','失败'],pend:['g','等待中'],off:['g','停用']};
+ const [c,t]=m[st]||m.pend; return `<span class="dot ${c}"></span>${t}`;
+}
+function tagHtml(t,cls){return `<span class="tag ${cls||'tag-blue'}">${esc(t)}</span>`}
+let toastTimer;
+function toast(txt){$('#toast-txt').textContent=txt;$('#toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').classList.remove('show'),2200)}
+
+/* ================= 路由 / 导航 ================= */
+const TITLES={dashboard:'工作台',repos:'存储仓库',hosts:'主机管理',tasks:'备份任务',runs:'执行记录',snapshots:'备份数据',users:'用户管理',runlog:'执行日志'};
+const TABS=[];
+function nav(page){
+ document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+ $('#page-'+page).classList.remove('hidden');
+ document.querySelectorAll('.menu-item').forEach(m=>m.classList.toggle('active',m.dataset.page===page));
+ $('#crumb').innerHTML=`<b>${TITLES[page]||'工作台'}</b>`;
+ const title=TITLES[page]||'';
+ if(page!=='runlog'){ if(!TABS.includes(page))TABS.push(page); renderTabs(page); }
+ if(page==='runlog') renderTabs('runlog');
+ renderPage(page);
+ window.scrollTo(0,0);
+}
+function renderTabs(active){
+ $('#tabs').innerHTML=TABS.map(p=>`<div class="tab ${p===active?'active':''}" onclick="nav('${p}')">${TITLES[p]}<span class="x" onclick="event.stopPropagation();closeTab('${p}')">✕</span></div>`).join('');
+}
+function closeTab(p){const i=TABS.indexOf(p);if(i>-1)TABS.splice(i,1);renderTabs(TABS[TABS.length-1]||'dashboard');nav(TABS[TABS.length-1]||'dashboard')}
+
+/* ================= 页面渲染 ================= */
+function renderPage(p){
+ if(p==='dashboard'){$('#dash-runs').innerHTML=DASH.map(r=>`<tr><td>${esc(r.task)}</td><td>${tagHtml(r.type,'tag-blue')}</td><td>${esc(r.host)}</td><td>${statusHtml(r.st)}</td><td>${r.time}</td><td><a class="btn-l" href="javascript:startRun('backup')">查看</a></td></tr>`).join('');}
+ if(p==='repos'){$('#repo-tbody').innerHTML=REPOS.map(r=>`<tr><td><b>${esc(r.name)}</b></td><td>${tagHtml(r.type,r.type==='minio'?'tag-blue':'tag-orange')}</td><td class="mono">${esc(r.addr)}</td><td>${statusHtml(r.st)}</td><td>${r.check}</td><td>
+   <a class="btn-l" href="javascript:openRepoTest('${r.name}')">测试</a>
+   <a class="btn-l" href="javascript:openRepoDrawer('${r.name}')">编辑</a>
+   <a class="btn-l danger" href="javascript:confirmDel('仓库 ${r.name}','删除后该仓库下的备份数据将无法通过本系统访问。')">删除</a></td></tr>`).join('');}
+ if(p==='hosts'){$('#host-tbody').innerHTML=HOSTS.map(h=>`<tr><td><b>${esc(h.name)}</b></td><td class="mono">${esc(h.ip)}</td><td>${esc(h.user)}</td><td>${esc(h.pf)} / ${esc(h.arch)}</td><td>${statusHtml(h.st)}</td><td>${h.check}</td><td>
+   <a class="btn-l" href="javascript:openHostTest('${h.name}')">测试</a>
+   <a class="btn-l" href="javascript:openHostDrawer('${h.name}')">编辑</a>
+   <a class="btn-l danger" href="javascript:confirmDel('主机 ${h.name}','该主机被备份任务引用，删除前请先解除关联。')">删除</a></td></tr>`).join('');}
+ if(p==='tasks'){$('#task-tbody').innerHTML=TASKS.map(t=>`<tr><td><b>${esc(t.name)}</b></td><td>${esc(t.host)}</td><td>${esc(t.repo)}</td><td class="mono">${esc(t.sch)}</td><td>${t.on?tagHtml('启用','tag-green'):tagHtml('停用','tag-grey')}</td><td>${t.last}</td><td>
+   <a class="btn-l" href="javascript:startRun('backup')">立即执行</a>
+   <a class="btn-l" href="javascript:toast('原型演示：任务详情')">详情</a>
+   <a class="btn-l" href="javascript:openTaskDrawer()">编辑</a>
+   <a class="btn-l danger" href="javascript:confirmDel('任务 ${t.name}','删除后历史执行记录仍保留。')">删除</a></td></tr>`).join('');}
+ if(p==='runs'){$('#runs-tbody').innerHTML=RUNS.map(r=>`<tr><td class="mono">#${r.id}</td><td>${tagHtml(r.type,r.type==='备份'?'tag-blue':'tag-green')}</td><td>${esc(r.task)}</td><td>${esc(r.host)}</td><td>${statusHtml(r.st)}</td><td>${r.trg==='cron'?tagHtml('cron','tag-grey'):tagHtml('手动','tag-orange')}</td><td class="mono">${r.start}</td><td class="mono">${r.end}</td><td><a class="btn-l" href="javascript:startRun('${r.type==='备份'?'backup':'restore'}',${r.id})">查看</a></td></tr>`).join('');}
+ if(p==='snapshots'){$('#snap-tbody').innerHTML=SNAPS.map(s=>`<tr><td class="mono">${s.id}</td><td class="mono">${s.time}</td><td>${esc(s.host)}</td><td>${esc(s.repo)}</td><td>${tagHtml(s.tag)}</td><td>${s.size}</td><td>${s.files}</td><td>
+   <a class="btn-l" href="javascript:openTree('${s.id}')">浏览</a>
+   <a class="btn-l" href="javascript:openModal('restore-modal')">恢复</a>
+   <a class="btn-l danger" href="javascript:confirmDel('快照 ${s.id}','清理后该快照数据将被永久删除。')">清理</a></td></tr>`).join('');}
+ if(p==='users'){$('#user-tbody').innerHTML=USERS.map(u=>`<tr><td>${u.id}</td><td><b>${esc(u.name)}</b></td><td>${esc(u.nick)}</td><td>${tagHtml(u.role,u.role==='admin'?'tag-red':u.role==='write'?'tag-blue':'tag-grey')}</td><td>${u.time}</td><td><a class="btn-l" href="javascript:toast('原型演示：编辑用户')">编辑</a><a class="btn-l danger" href="javascript:toast('原型演示：删除用户')">删除</a></td></tr>`).join('');}
+}
+
+/* ================= 抽屉 ================= */
+function openDrawer(){ $('#mask').classList.add('show'); $('#drawer').classList.add('show'); }
+function closeDrawers(){ $('#mask').classList.remove('show'); $('#drawer').classList.remove('show'); }
+function drawerFoot(html){ $('#drawer-foot').innerHTML=html; }
+function openRepoDrawer(name){
+ const isNew=!name; const r=REPOS.find(x=>x.name===name);
+ $('#drawer-title').textContent=isNew?'新增仓库':'编辑仓库：'+name;
+ $('#form-repo').classList.remove('hidden'); $('#form-host').classList.add('hidden'); $('#form-task').classList.add('hidden');
+ drawerFoot(`<button class="btn btn-d" onclick="openRepoTest('${name||'prod-s3'}')">测试连接</button><button class="btn btn-w" onclick="closeDrawers()">取消</button><button class="btn btn-b" onclick="closeDrawers();toast('${isNew?'仓库已创建':'仓库已保存'}')">${isNew?'创建':'保存'}</button>`);
+ openDrawer();
+}
+function openHostDrawer(name){
+ $('#drawer-title').textContent=name?'编辑主机：'+name:'新增主机';
+ $('#form-host').classList.remove('hidden'); $('#form-repo').classList.add('hidden'); $('#form-task').classList.add('hidden');
+ drawerFoot(`<button class="btn btn-d" onclick="openHostTest('${name||'web-01'}')">测试连接</button><button class="btn btn-w" onclick="closeDrawers()">取消</button><button class="btn btn-b" onclick="closeDrawers();toast('主机已保存')">保存</button>`);
+ openDrawer();
+}
+let TASK_STEP=0;
+function openTaskDrawer(){
+ TASK_STEP=0; renderTaskStep();
+ $('#drawer-title').textContent='新建备份任务';
+ $('#form-task').classList.remove('hidden'); $('#form-repo').classList.add('hidden'); $('#form-host').classList.add('hidden');
+ drawerFoot('');
+ openDrawer();
+}
+function renderTaskStep(){
+ for(let i=0;i<4;i++){const s=$('#task-steps').children[i];
+  s.className='step'+(i===TASK_STEP?' on':i<TASK_STEP?' done':'');
+  s.querySelector('.c').textContent=i<TASK_STEP?'✓':i+1;}
+ for(let i=0;i<4;i++)$('#ts-'+i).classList.toggle('hidden',i!==TASK_STEP);
+ const last=TASK_STEP===3;
+ drawerFoot(`<div style="display:flex;justify-content:space-between;width:100%"><div>
+   ${TASK_STEP>0?`<button class="btn btn-w" onclick="TASK_STEP--;renderTaskStep()">上一步</button>`:''}
+   </div><div style="display:flex;gap:10px">
+   <button class="btn btn-w" onclick="closeDrawers()">取消</button>
+   ${last?`<button class="btn btn-b" onclick="closeDrawers();toast('任务已创建，已注册到调度器')">创建</button>`
+         :`<button class="btn btn-b" onclick="TASK_STEP++;renderTaskStep()">下一步</button>`}
+   </div></div>`);
+}
+function repoTypeChanged(){
+ const t=$('#f-repo-type').value;
+ const addr={minio:'s3:backup-bucket:/web',s3:'s3:mybucket:/path',local:'/data/backup',sftp:'sftp:user@host:/backup',azure:'azure:container:/path',b2:'b2:bucket:path'}[t];
+ $('#f-repo-addr').value=addr;
+ $('#repo-fields').style.display=(t==='local'||t==='sftp')?'none':'';
+}
+
+/* ================= Modal ================= */
+function openModal(id){ $('#'+id).classList.add('show'); }
+function closeModal(id){ $('#'+id).classList.remove('show'); }
+function openRepoTest(name){
+ const r=REPOS.find(x=>x.name===name)||REPOS[0];
+ $('#test-body').innerHTML=`<div style="display:flex;gap:14px;margin-bottom:14px">
+   <div style="width:44px;height:44px;border-radius:50%;background:#f6ffed;color:#52c41a;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none">✔</div>
+   <div><b style="font-size:15px">连接成功</b><div class="hint" style="margin-top:4px">仓库 <b>${esc(r.name)}</b> 可用，密码正确</div></div></div>
+  <table class="tbl"><tbody>
+   <tr><td style="width:110px;color:var(--text2)">后端类型</td><td>${esc(r.type)}</td></tr>
+   <tr><td style="color:var(--text2)">地址</td><td class="mono">${esc(r.addr)}</td></tr>
+   <tr><td style="color:var(--text2)">快照数量</td><td>312</td></tr>
+   <tr><td style="color:var(--text2)">仓库大小</td><td>18.6 GB</td></tr>
+   <tr><td style="color:var(--text2)">耗时</td><td>1.24 s</td></tr>
+  </tbody></table>`;
+ openModal('test-modal');
+}
+function openHostTest(name){
+ const h=HOSTS.find(x=>x.name===name)||HOSTS[0];
+ $('#test-body').innerHTML=`<div style="display:flex;gap:14px;margin-bottom:14px">
+   <div style="width:44px;height:44px;border-radius:50%;background:#f6ffed;color:#52c41a;display:flex;align-items:center;justify-content:center;font-size:20px;flex:none">✔</div>
+   <div><b style="font-size:15px">SSH 连接成功</b><div class="hint" style="margin-top:4px">主机 <b>${esc(h.name)}</b>（${esc(h.ip)}）已连接，耗时 0.38 s</div></div></div>
+  <table class="tbl"><tbody>
+   <tr><td style="width:110px;color:var(--text2)">系统信息</td><td>Linux 6.8.0-45-generic #45-Ubuntu SMP</td></tr>
+   <tr><td style="color:var(--text2)">平台探测</td><td>linux / amd64 <span class="tag tag-green">与配置一致</span></td></tr>
+   <tr><td style="color:var(--text2)">restic 目录</td><td class="mono">~/.restic-web</td></tr>
+   <tr><td style="color:var(--text2)">磁盘剩余</td><td>186 GB / 256 GB</td></tr>
+  </tbody></table>`;
+ openModal('test-modal');
+}
+let confirmCb=null;
+function confirmDel(what,desc){
+ $('#confirm-body').innerHTML=`<p style="margin-bottom:8px">确定删除 <b>${esc(what)}</b>？</p><div class="alert warn">${esc(desc)}</div>`;
+ openModal('confirm-modal');
+}
+function confirmYes(){ closeModal('confirm-modal'); toast('已删除（原型演示）'); }
+
+/* ================= 快照文件树 ================= */
+let TREE_SEL='';
+function openTree(id){
+ $('#tree-sel').textContent='/var/www/html（目录）';
+ $('#snap-tree').innerHTML=`
+  <div class="tnode"><span class="tw">▾</span><span class="chk on" id="tc0"></span><span class="nm">/var/www</span><span class="meta">4.2 MB</span></div>
+  <div style="padding-left:22px">
+   <div class="tnode sel"><span class="tw">▾</span><span class="chk on"></span><span class="nm">html</span><span class="meta">3.8 MB · 128 项</span></div>
+   <div style="padding-left:22px">
+    <div class="tnode"><span class="tw">▸</span><span class="chk"></span><span class="nm">assets</span><span class="meta">1.8 MB · 64 项</span></div>
+    <div class="tnode" onclick="toast('已选中 index.html')"><span class="tw"></span><span class="chk"></span><span class="nm">index.html</span><span class="meta">12 KB</span></div>
+    <div class="tnode" onclick="toast('已选中 app.js')"><span class="tw"></span><span class="chk"></span><span class="nm">app.js</span><span class="meta">240 KB</span></div>
+    <div class="tnode"><span class="tw">▸</span><span class="chk"></span><span class="nm">img</span><span class="meta">1.7 MB · 61 项</span></div>
+   </div>
+   <div class="tnode"><span class="tw">▸</span><span class="chk"></span><span class="nm">logs</span><span class="meta">512 KB · 8 项</span></div>
+   <div class="tnode"><span class="tw"></span><span class="chk"></span><span class="nm">robots.txt</span><span class="meta">1 KB</span></div>
+  </div>`;
+ openModal('tree-modal');
+}
+
+/* ================= 执行日志（模拟 SSE 流） ================= */
+let runTimer=null;
+const RUN_STEPS_BACKUP=[
+ {t:'读取任务配置',ico:'✓'},
+ {t:'生成 restic 配置文件',ico:'✓'},
+ {t:'上传程序与配置文件',ico:'✓'},
+ {t:'执行 restic backup',ico:'▶'},
+ {t:'更新任务状态为已完成',ico:'○'},
+];
+const RUN_STEPS_RESTORE=[
+ {t:'读取仓库与快照信息',ico:'✓'},
+ {t:'生成 restic 配置文件',ico:'✓'},
+ {t:'上传程序与配置文件',ico:'✓'},
+ {t:'执行 restic restore',ico:'▶'},
+ {t:'更新恢复记录',ico:'○'},
+];
+const RUN_LINES_BACKUP=[
+ ['dim','[02:00:04.001] opening repository (env)'],
+ ['dim','[02:00:04.220] lock repository'],
+ ['dim','[02:00:04.511] scan [/etc /var/www]'],
+ ['t','[02:00:04.602] starting backup of /etc'],
+ ['t','[02:00:05.110] backup of /var/www'],
+ ['o','[02:00:06.301] processed 12,034 files, 1.2 GiB in 00:07'],
+ ['o','[02:00:12.877] snapshot a1b2c3d4 saved'],
+ ['o','[02:00:12.890] done'],
+ ['t','[02:00:12.901] forget: keep last 7, daily 30'],
+ ['o','[02:00:13.502] forget: applied policy, removed 0 snapshots'],
+ ['o','[02:00:13.510] task status updated: SUCCESS'],
+];
+const RUN_LINES_RESTORE=[
+ ['dim','[01:30:00.010] opening repository (env)'],
+ ['dim','[01:30:00.231] lock repository'],
+ ['t','[01:30:00.512] restoring snapshot a1b2c3d4'],
+ ['t','[01:30:01.203] restore /var/www/html -> /data/restore/html'],
+ ['o','[01:31:40.112] restored 128 files, 3.8 MiB in 01:40'],
+ ['o','[01:31:40.520] done'],
+ ['t','[01:31:41.001] restore record updated: SUCCESS'],
+];
+function startRun(type,id){
+ nav('runlog');
+ if(runTimer) clearInterval(runTimer);
+ const backup=type==='backup';
+ const steps=backup?RUN_STEPS_BACKUP:RUN_STEPS_RESTORE;
+ const lines=backup?RUN_LINES_BACKUP:RUN_LINES_RESTORE;
+ $('#run-title').textContent=`执行记录 #${id||(backup?1024:1023)} · ${backup?'web-daily（备份）':'从快照恢复'}`;
+ $('#run-meta').textContent=`主机 web-01 · 仓库 prod-s3 · 触发 ${backup?'cron':'手动'} · 开始 ${backup?'02:00:00':'01:30:00'}`;
+ $('#run-status').innerHTML=`<span class="tag tag-blue">运行中</span>`;
+ $('#run-steps').innerHTML=steps.map((s,i)=>`<div class="rs" id="rs${i}"><span class="ico">${s.ico}</span>${s.t}<span class="tm" id="rst${i}"></span></div>`).join('');
+ $('#console').innerHTML='';
+ $('#filebar').style.display='none';
+ let li=0,ls=0,fileN=0,filePct=0;
+ const TS=[0,500,1200,1900,2600,3400,4200,5000,5600,6200,7000,7800];
+ const tm=(t)=>`[${backup?'02:00':'01:30'}:${String(Math.floor(t/1000)).padStart(2,'0')}.${String(t%1000).padStart(3,'0')}]`;
+ runTimer=setInterval(()=>{
+  if(li<lines.length){
+   const [cls,txt]=lines[li];
+   const div=document.createElement('div');div.className='ln '+cls;div.textContent=tm(TS[li]||li*600)+' '+txt;
+   $('#console').appendChild(div);
+   li++;
+   if(li>=lines.length){finishRun(backup);return;}
+  }
+  // 步骤进度
+  const stepIdx=Math.min(Math.floor(li/2),4);
+  for(let i=0;i<5;i++){const el=$('#rs'+i);if(!el)continue;
+   el.classList.toggle('done',i<stepIdx);el.classList.toggle('on',i===stepIdx);
+   const t=$('#rst'+i); if(t&&i<stepIdx)t.textContent=backup?'02:00:'+String(4+i*2).padStart(2,'0'):'01:30:'+String(0+i*2).padStart(2,'0');
+  }
+  // 文件进度条（第4步期间）
+  if(stepIdx===3){
+   $('#filebar').style.display='';
+   fileN+=Math.floor(Math.random()*300)+150; filePct=Math.min(100,filePct+Math.random()*6);
+   if(fileN>12034){fileN=12034;filePct=100;}
+   $('#filebar-i').style.width=filePct+'%';
+   $('#filebar-t').textContent=`${fileN.toLocaleString()} / 12,034 文件 · ${filePct.toFixed(0)}%`;
+  }
+  autoScroll();
+ },380);
+}
+function finishRun(backup){
+ if(runTimer){clearInterval(runTimer);runTimer=null;}
+ $('#run-status').innerHTML=`<span class="tag tag-green">● 成功</span>`;
+ for(let i=0;i<5;i++){const el=$('#rs'+i);if(el){el.classList.remove('on');el.classList.add('done');}}
+ $('#filebar').style.display='none';
+ $('#console').appendChild(Object.assign(document.createElement('div'),{className:'ln dim',textContent:'[stream ended] 执行完成，耗时 '+(backup?'00:08':'01:40')}));
+ autoScroll();
+}
+function autoScroll(){ if($('#autoscroll').checked) $('#console').scrollTop=$('#console').scrollHeight; }
+
+/* ================= 登录 ================= */
+function doLogin(){
+ $('#view-login').classList.add('hidden');
+ $('#app').classList.remove('hidden');
+ TABS.length=0;
+ toast('欢迎回来，管理员');
+ nav('dashboard');
+}
+
+/* ================= 启动 ================= */
+nav('dashboard');
+</script>
+</body>
+</html>
