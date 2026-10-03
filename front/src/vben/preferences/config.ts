@@ -18,7 +18,7 @@ const defaultPreferences: Preferences = {
     layout: "mixed-nav",
     locale: "zh-CN",
     loginExpiredMode: "page",
-    name: "FsAdmin",
+    name: "OctoBackup",
     preferencesButtonPosition: "auto",
     watermark: false
   },
@@ -30,9 +30,9 @@ const defaultPreferences: Preferences = {
     styleType: "normal"
   },
   copyright: {
-    companyName: "greper",
-    companySiteLink: "https://github.com/fast-crud/fast-crud",
-    date: "2024",
+    companyName: "OctoBackup",
+    companySiteLink: "https://github.com/handfree-work/octo-backup",
+    date: "2026",
     enable: true,
     icp: "",
     icpLink: "",
@@ -50,7 +50,7 @@ const defaultPreferences: Preferences = {
   },
   logo: {
     enable: true,
-    source: "./images/logo/logo.svg"
+    source: "/logo/logo-icon.svg"
   },
   navigation: {
     accordion: true,

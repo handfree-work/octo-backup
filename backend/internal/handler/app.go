@@ -1,10 +1,10 @@
 package handler
 
 import (
-	"handfree-work/web-restic/internal/handler/basic"
-	sysHandler "handfree-work/web-restic/internal/handler/sys"
-	userHandler "handfree-work/web-restic/internal/handler/user"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/handler/basic"
+	sysHandler "handfree-work/octo-backup/internal/handler/sys"
+	userHandler "handfree-work/octo-backup/internal/handler/user"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"

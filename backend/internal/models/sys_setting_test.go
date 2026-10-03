@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"testing"
 
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/models"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/models"
 )
 
 func TestSysSettingSchemaAndPersistence(t *testing.T) {
@@ -39,7 +39,7 @@ func TestSysSettingSchemaAndPersistence(t *testing.T) {
 		t.Fatalf("sys_setting columns = %#v, want %#v", columns, wantColumns)
 	}
 
-	setting := &models.SysSetting{Key: "instance", Setting: `{"name":"web-restic"}`}
+	setting := &models.SysSetting{Key: "instance", Setting: `{"name":"OctoBackup"}`}
 	if err := database.Create(setting).Error; err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}

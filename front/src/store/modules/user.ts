@@ -64,7 +64,7 @@ export const useUserStore = defineStore({
       this.setUserInfo(data.user);
       const accessStore = useAccessStore();
       accessStore.setAccessCodes([data.user.role]);
-      await router.replace("/");
+      await router.replace("/index");
       mitter.emit("app.login", { userInfo: data.user, token: data.token });
       return data.user;
     },

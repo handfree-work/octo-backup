@@ -22,8 +22,15 @@ export const sysResources = [
         },
         path: "/sys/authority/user",
         component: "/sys/authority/user/index.vue"
-      }
-      ,{
+      },
+      {
+        title: "授权管理",
+        name: "access",
+        meta: { icon: "ion:key-outline", permission: "read" },
+        path: "/sys/authority/access",
+        component: "/sys/authority/access/index.vue"
+      },
+      {
         title: "存储仓库",
         name: "repository",
         meta: { icon: "ion:server-outline", permission: "read" },

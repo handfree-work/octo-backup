@@ -1,12 +1,7 @@
 <template>
-  <fs-page>
-    <template #header><div class="title">存储仓库管理</div></template>
-    <fs-crud ref="crudRef" v-bind="crudBinding" />
-  </fs-page>
+  <PluginCrud plugin-type="repository" title="存储仓库" description="配置 Restic 使用的本地、SFTP、S3 和 MinIO 仓库。" />
 </template>
-<script lang="ts">
-import { defineComponent, onMounted } from "vue";
-import { useFs } from "@fast-crud/fast-crud";
-import createCrudOptions from "./crud";
-export default defineComponent({ name: "StorageRepository", setup() { const { crudBinding, crudRef, crudExpose } = useFs({ createCrudOptions }); onMounted(() => crudExpose.doRefresh()); return { crudBinding, crudRef }; } });
+
+<script setup lang="ts">
+import PluginCrud from "/@/views/sys/plugin/index.vue";
 </script>

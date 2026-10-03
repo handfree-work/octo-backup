@@ -1,4 +1,4 @@
-# Web Restic
+# OctoBackup
 
 一个基于Restic的远程备份管理系统，优雅的web界面，远程系统数据备份、恢复、管理等功能。
 
@@ -30,4 +30,7 @@
 swag init --generalInfo app.go --output docs --parseInternal
 ```
 
+## 终端管理
+
+在 `backend` 目录运行 `go run . --admin` 可进入终端管理界面。选择“重置用户密码”后输入用户名和新密码，选择“退出”返回命令行；管理模式不会启动 Web 服务。
 

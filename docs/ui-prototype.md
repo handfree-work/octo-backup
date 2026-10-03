@@ -1,4 +1,4 @@
-# Web Restic UI 原型设计
+# OctoBackup UI 原型设计
 
 > 版本：v0.1（设计稿）
 > 配套文档：《需求分析设计》`requirements-design.md`、《系统概要设计》`system-design.md`
@@ -51,7 +51,7 @@
 
 ```
 ┌──────────────────────────────┐
-│          logo  Web Restic      │
+│          logo  OctoBackup      │
 │  ┌────────────────────────┐   │
 │  │ 用户名  [____________]  │   │
 │  │ 密码    [____________]  │   │

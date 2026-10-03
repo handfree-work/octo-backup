@@ -3,10 +3,9 @@ package user
 import (
 	"strconv"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/web_"
-	logic "handfree-work/web-restic/internal/service"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/web_"
+	logic "handfree-work/octo-backup/internal/service"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -14,13 +13,15 @@ import (
 // Register 注册认证与用户管理接口。
 func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
 	users := app.Group("/api/user")
-	users.Post("/create", auth.Require(svcCtx.Auth, auth.Admin), createUser(svcCtx))
-	users.Post("/list", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
-	users.Post("/page", auth.Require(svcCtx.Auth, auth.Read), listUsers(svcCtx))
-	users.Post("/info", auth.Require(svcCtx.Auth, auth.Read), getUser(svcCtx))
-	users.Post("/update", auth.Require(svcCtx.Auth, auth.Write), updateUser(svcCtx))
-	users.Post("/delete", auth.Require(svcCtx.Auth, auth.Admin), deleteUser(svcCtx))
-	users.Post("/batchDelete", auth.Require(svcCtx.Auth, auth.Admin), batchDeleteUser(svcCtx))
+	web_.RegisterRoutes(users, svcCtx.Auth,
+		web_.Route{Path: "/create", Permission: web_.Admin, Handler: createUser(svcCtx)},
+		web_.Route{Path: "/list", Permission: web_.Read, Handler: listUsers(svcCtx)},
+		web_.Route{Path: "/page", Permission: web_.Read, Handler: listUsers(svcCtx)},
+		web_.Route{Path: "/info", Permission: web_.Read, Handler: getUser(svcCtx)},
+		web_.Route{Path: "/update", Permission: web_.Write, Handler: updateUser(svcCtx)},
+		web_.Route{Path: "/delete", Permission: web_.Admin, Handler: deleteUser(svcCtx)},
+		web_.Route{Path: "/batchDelete", Permission: web_.Admin, Handler: batchDeleteUser(svcCtx)},
+	)
 }
 
 // createUser godoc
@@ -127,14 +128,14 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 		if err := c.Bind().Body(&input); err != nil {
 			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
 		}
-		claims, ok := auth.ClaimsFromContext(c)
+		claims, ok := web_.ClaimsFromContext(c)
 		if !ok {
 			return writeError(c, fiber.StatusUnauthorized, "未登录或登录已过期")
 		}
-		if claims.Role != auth.RoleAdmin && claims.UserID != id {
+		if claims.Role != web_.RoleAdmin && claims.UserID != id {
 			return writeError(c, fiber.StatusForbidden, "没有访问权限")
 		}
-		if claims.Role != auth.RoleAdmin && input.Role != nil {
+		if claims.Role != web_.RoleAdmin && input.Role != nil {
 			return writeError(c, fiber.StatusForbidden, "只有管理员可以调整角色")
 		}
 		user, err := logic.NewUserService(c.Context(), svcCtx).Update(id, &input)

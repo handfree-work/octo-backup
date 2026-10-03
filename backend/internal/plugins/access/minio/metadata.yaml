@@ -1,0 +1,7 @@
+type: access
+name: access.minio
+title: MinIO 授权
+description: MinIO 对象存储授权
+version: 1.0.0
+fields: [{key: endpoint, title: Endpoint, type: string, required: true}, {key: accessKey, title: Access Key, type: string, required: true, encrypt: true}, {key: secretKey, title: Secret Key, type: password, required: true, encrypt: true}, {key: region, title: 区域, type: string}]
+actions: [{name: onTest, title: 测试连接, permission: write}, {name: onListBuckets, title: 获取 Bucket, permission: read}]

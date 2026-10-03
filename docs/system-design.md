@@ -1,4 +1,4 @@
-# Web Restic 系统概要设计
+# OctoBackup 系统概要设计
 
 > 版本：v0.1（设计稿）
 > 配套文档：《需求分析设计》`requirements-design.md`、《UI 原型设计》`ui-prototype.md`

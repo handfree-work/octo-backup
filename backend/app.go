@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"os"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/base/log_"
-	"handfree-work/web-restic/internal/config"
-	"handfree-work/web-restic/internal/handler"
-	"handfree-work/web-restic/internal/models"
-	"handfree-work/web-restic/internal/svc"
+	adminui "handfree-work/octo-backup/internal/admin"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/log_"
+	"handfree-work/octo-backup/internal/base/web_"
+	"handfree-work/octo-backup/internal/config"
+	"handfree-work/octo-backup/internal/handler"
+	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/modules/plugin"
+	"handfree-work/octo-backup/internal/plugins"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/recover"
@@ -19,9 +22,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// @title Web Restic API
+// @title OctoBackup API
 // @version 1.0
-// @description Web Restic 的认证与用户管理 API。
+// @description OctoBackup 的认证与用户管理 API。
 // @BasePath /
 // @schemes http
 // @securityDefinitions.apikey bearerAuth
@@ -34,6 +37,7 @@ var (
 	mode      = flag.String("mode", getenv("APP_MODE", "dev"), "运行模式")
 	configDir = flag.String("config", "./etc", "配置文件目录")
 	prod      = flag.Bool("prod", false, "启用 Fiber prefork")
+	adminMode = flag.Bool("admin", false, "进入终端管理界面")
 )
 
 func main() {
@@ -68,7 +72,7 @@ func main() {
 		log_.Logger.Error("生产环境必须设置 JWT_SECRET")
 		return
 	}
-	authConfig, err := auth.NewConfig(jwtSecret, cfg.Auth.TokenTTL)
+	authConfig, err := web_.NewConfig(jwtSecret, cfg.Auth.TokenTTL)
 	if err != nil {
 		log_.Logger.Error("初始化认证配置失败", zap.Error(err))
 		return
@@ -78,18 +82,29 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
-	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}); err != nil {
+	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.Plugin{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
+		return
+	}
+	if *adminMode {
+		if err := adminui.Run(database, os.Stdin, os.Stdout); err != nil {
+			log_.Logger.Error("管理界面退出", zap.Error(err))
+		}
 		return
 	}
 
 	app := fiber.New()
 	app.Use(recover.New())
 	app.Use(log_.HTTPMiddleware())
-	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig})
+	pluginRegistry := plugin.NewRegistry()
+	if err := plugins.RegisterAll(pluginRegistry); err != nil {
+		log_.Logger.Error("注册插件失败", zap.Error(err))
+		return
+	}
+	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig, Plugins: pluginRegistry})
 	app.Get("/*", static.New("./static/public"))
 
-	log_.Logger.Info("web-restic 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))
+	log_.Logger.Info("OctoBackup 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))
 	if err := app.Listen(listenAddr, fiber.ListenConfig{EnablePrefork: *prod}); err != nil {
 		log_.Logger.Error("服务停止", zap.Error(err))
 	}

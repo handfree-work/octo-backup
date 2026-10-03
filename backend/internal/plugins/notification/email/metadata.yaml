@@ -1,0 +1,7 @@
+type: notification
+name: notification.email
+title: 邮件通知
+description: SMTP 邮件通知
+version: 1.0.0
+fields: [{key: host, title: SMTP 主机, type: string, required: true}, {key: port, title: 端口, type: number, default: 587}, {key: username, title: 用户名, type: string}, {key: password, title: 密码, type: password, encrypt: true}, {key: from, title: 发件人, type: string}]
+actions: [{name: onSend, title: 发送通知, permission: write}]

@@ -1,18 +1,62 @@
 package basic_test
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"strconv"
 	"testing"
 	"time"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/handler"
-	"handfree-work/web-restic/internal/models"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/web_"
+	"handfree-work/octo-backup/internal/handler"
+	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/svc"
+
+	"github.com/gofiber/fiber/v3"
 )
+
+type response struct {
+	HTTPStatus int
+	Code       int
+	Data       map[string]any
+}
+
+func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any, tokens ...string) response {
+	t.Helper()
+	var payload io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("marshal request: %v", err)
+		}
+		payload = bytes.NewReader(encoded)
+	}
+	req := httptest.NewRequest(method, path, payload)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if len(tokens) > 0 && tokens[0] != "" {
+		req.Header.Set("Authorization", "Bearer "+tokens[0])
+	}
+	res, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("request %s %s: %v", method, path, err)
+	}
+	t.Cleanup(func() { _ = res.Body.Close() })
+	decoded := struct {
+		Code int            `json:"code"`
+		Data map[string]any `json:"data"`
+	}{}
+	if err := json.NewDecoder(res.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	return response{HTTPStatus: res.StatusCode, Code: decoded.Code, Data: decoded.Data}
+}
 
 func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	db, err := db_.OpenSQLite(filepath.Join(t.TempDir(), "db.sqlite"))
@@ -29,20 +73,20 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	}
 	app := handler.NewApp(&svc.ServiceContext{
 		Db:   db,
-		Auth: auth.Config{Secret: "test-secret", TokenTTL: time.Hour},
+		Auth: web_.Config{Secret: "test-secret", TokenTTL: time.Hour},
 	})
 
-	unauthorized := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil)
-	if unauthorized.Code != http.StatusUnauthorized {
-		t.Fatalf("unauthorized list status = %d, want %d", unauthorized.Code, http.StatusUnauthorized)
+	unauthorized := doJSONRequest(t, app, http.MethodPost, "/api/user/list", nil)
+	if unauthorized.HTTPStatus != http.StatusOK || unauthorized.Code == 0 {
+		t.Fatalf("unauthorized list response = %#v, want HTTP 200 with business error", unauthorized)
 	}
 
 	registered := doJSONRequest(t, app, http.MethodPost, "/api/auth/register", map[string]string{
 		"username": "admin",
 		"password": "secret",
 	})
-	if registered.Code != http.StatusCreated {
-		t.Fatalf("register status = %d, want %d", registered.Code, http.StatusCreated)
+	if registered.Code != 0 {
+		t.Fatalf("register business code = %d, want 0", registered.Code)
 	}
 	if registered.Data["role"] != "admin" {
 		t.Fatalf("first registered role = %#v, want admin", registered.Data["role"])
@@ -52,32 +96,32 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		"username": "admin",
 		"password": "wrong",
 	})
-	if badLogin.Code != http.StatusUnauthorized {
-		t.Fatalf("bad login status = %d, want %d", badLogin.Code, http.StatusUnauthorized)
+	if badLogin.HTTPStatus != http.StatusOK || badLogin.Code == 0 {
+		t.Fatalf("bad login response = %#v, want HTTP 200 with business error", badLogin)
 	}
 
 	login := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
 		"username": "admin",
 		"password": "secret",
 	})
-	if login.Code != http.StatusOK {
-		t.Fatalf("login status = %d, want %d", login.Code, http.StatusOK)
+	if login.Code != 0 {
+		t.Fatalf("login business code = %d, want 0", login.Code)
 	}
 	token, ok := login.Data["token"].(string)
 	if !ok || token == "" {
 		t.Fatalf("login token = %#v, want non-empty string", login.Data["token"])
 	}
 
-	authorized := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil, token)
-	if authorized.Code != http.StatusOK {
-		t.Fatalf("authorized list status = %d, want %d", authorized.Code, http.StatusOK)
+	authorized := doJSONRequest(t, app, http.MethodPost, "/api/user/list", map[string]any{}, token)
+	if authorized.Code != 0 {
+		t.Fatalf("authorized list business code = %d, want 0", authorized.Code)
 	}
-	writer := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
+	writer := doJSONRequest(t, app, http.MethodPost, "/api/user/create", map[string]string{
 		"username": "writer",
 		"password": "secret",
 		"role":     "write",
 	}, token)
-	if writer.Code != http.StatusCreated || writer.Data["role"] != "write" {
+	if writer.Code != 0 || writer.Data["role"] != "write" {
 		t.Fatalf("writer creation response = %#v, want created write user", writer)
 	}
 	writerID := int64(writer.Data["id"].(float64))
@@ -86,24 +130,24 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		"password": "secret",
 	})
 	writerToken := writerLogin.Data["token"].(string)
-	writerUpdate := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(writerID, 10)+"/update", map[string]string{
+	writerUpdate := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerID, 10), map[string]string{
 		"nickName": "updated by writer",
 	}, writerToken)
-	if writerUpdate.Code != http.StatusOK {
-		t.Fatalf("writer update status = %d, want %d", writerUpdate.Code, http.StatusOK)
+	if writerUpdate.Code != 0 {
+		t.Fatalf("writer update business code = %d, want 0", writerUpdate.Code)
 	}
-	roleEscalation := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(writerID, 10)+"/update", map[string]string{
+	roleEscalation := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerID, 10), map[string]string{
 		"role": "admin",
 	}, writerToken)
-	if roleEscalation.Code != http.StatusForbidden {
-		t.Fatalf("writer role update status = %d, want %d", roleEscalation.Code, http.StatusForbidden)
+	if roleEscalation.HTTPStatus != http.StatusOK || roleEscalation.Code == 0 {
+		t.Fatalf("writer role update response = %#v, want HTTP 200 with business error", roleEscalation)
 	}
 
 	second := doJSONRequest(t, app, http.MethodPost, "/api/auth/register", map[string]string{
 		"username": "reader",
 		"password": "secret",
 	})
-	if second.Code != http.StatusCreated || second.Data["role"] != "read" {
+	if second.Code != 0 || second.Data["role"] != "read" {
 		t.Fatalf("second registered response = %#v, want created read user", second)
 	}
 	readerID := int64(second.Data["id"].(float64))
@@ -115,10 +159,10 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if !ok || readerToken == "" {
 		t.Fatalf("reader token = %#v, want non-empty string", readerLogin.Data["token"])
 	}
-	forbidden := doJSONRequest(t, app, http.MethodPost, "/api/users/"+strconv.FormatInt(readerID, 10)+"/update", map[string]string{
+	forbidden := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(readerID, 10), map[string]string{
 		"nickName": "blocked",
 	}, readerToken)
-	if forbidden.Code != http.StatusForbidden {
-		t.Fatalf("reader update status = %d, want %d", forbidden.Code, http.StatusForbidden)
+	if forbidden.HTTPStatus != http.StatusOK || forbidden.Code == 0 {
+		t.Fatalf("reader update response = %#v, want HTTP 200 with business error", forbidden)
 	}
 }

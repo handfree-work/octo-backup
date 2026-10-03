@@ -1,7 +1,6 @@
 <template>
   <div v-if="showSourceLink" class="fs-source-link-group">
-    <div class="fs-source-link" @click="goSource('https://gitee.com')">本页源码（Gitee）</div>
-    <div class="fs-source-link" @click="goSource('https://github.com')">本页源码（Github）</div>
+    <div class="fs-source-link" @click="goSource('https://github.com/handfree-work/octo-backup')">OctoBackup 源码</div>
   </div>
 </template>
 
@@ -18,14 +17,14 @@ export default defineComponent({
         return router.currentRoute.value.fullPath;
       },
       (value) => {
-        showSourceLink.value = value !== "/index";
+        showSourceLink.value = false;
       },
       { immediate: true }
     );
-    const middle = "/fast-crud/fs-admin-antdv4/blob/main/src/views";
+    const middle = "/";
     function goSource(prefix: any) {
       const path = router.currentRoute.value.fullPath;
-      window.open(prefix + middle + path + "/index.vue");
+      window.open(prefix + middle);
     }
     return {
       goSource,

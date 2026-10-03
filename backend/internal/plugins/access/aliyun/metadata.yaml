@@ -1,0 +1,7 @@
+type: access
+name: access.aliyun
+title: 阿里云授权
+description: 阿里云访问授权
+version: 1.0.0
+fields: [{key: accessKeyId, title: AccessKey ID, type: string, required: true, encrypt: true}, {key: accessKeySecret, title: AccessKey Secret, type: password, required: true, encrypt: true}, {key: region, title: 区域, type: string}]
+actions: [{name: onTest, title: 测试连接, permission: write}]

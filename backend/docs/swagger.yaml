@@ -67,8 +67,8 @@ definitions:
     type: object
 info:
   contact: {}
-  description: Web Restic 的认证与用户管理 API。
-  title: Web Restic API
+  description: OctoBackup 的认证与用户管理 API。
+  title: OctoBackup API
   version: "1.0"
 paths:
   /api/auth/login:

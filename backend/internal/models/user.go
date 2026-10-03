@@ -1,7 +1,7 @@
 package models
 
 import (
-	"handfree-work/web-restic/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/db_"
 
 	"golang.org/x/crypto/bcrypt"
 )

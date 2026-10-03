@@ -1,18 +1,19 @@
 package basic
 
 import (
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/web_"
-	logic "handfree-work/web-restic/internal/service"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/web_"
+	logic "handfree-work/octo-backup/internal/service"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 func RegisterAuth(app *fiber.App, svcCtx *svc.ServiceContext) {
 	routes := app.Group("/api/auth")
-	routes.Post("/register", auth.Require(svcCtx.Auth, auth.Guest), registerUser(svcCtx))
-	routes.Post("/login", auth.Require(svcCtx.Auth, auth.Guest), loginUser(svcCtx))
+	web_.RegisterRoutes(routes, svcCtx.Auth,
+		web_.Route{Path: "/register", Permission: web_.Guest, Handler: registerUser(svcCtx)},
+		web_.Route{Path: "/login", Permission: web_.Guest, Handler: loginUser(svcCtx)},
+	)
 }
 func writeError(c fiber.Ctx, message string) error { return web_.Error(c, 1, message) }
 

@@ -1,0 +1,7 @@
+type: access
+name: access.s3
+title: S3 授权
+description: S3 兼容对象存储授权
+version: 1.0.0
+fields: [{key: accessKeyId, title: Access Key ID, type: string, required: true, encrypt: true}, {key: secretAccessKey, title: Secret Access Key, type: password, required: true, encrypt: true}, {key: region, title: 区域, type: string}, {key: endpoint, title: Endpoint, type: string}]
+actions: [{name: onTest, title: 测试连接, permission: write}, {name: onListBuckets, title: 获取 Bucket, permission: read}]

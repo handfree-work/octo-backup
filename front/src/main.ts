@@ -33,6 +33,9 @@ async function bootstrap() {
     overrides: {
       app: {
         name: import.meta.env.VITE_APP_TITLE
+      },
+      logo: {
+        source: import.meta.env.VITE_APP_LOGO_PATH
       }
     }
   });

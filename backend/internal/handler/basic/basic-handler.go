@@ -8,7 +8,7 @@ import (
 	"path"
 	"strings"
 
-	docs "handfree-work/web-restic/docs"
+	docs "handfree-work/octo-backup/docs"
 
 	"github.com/gofiber/fiber/v3"
 	swaggerFiles "github.com/swaggo/files/v2"
@@ -19,7 +19,7 @@ const swaggerIndex = `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Web Restic API 文档</title>
+  <title>OctoBackup API 文档</title>
   <link rel="stylesheet" href="./swagger-ui.css">
 </head>
 <body>

@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/handler"
-	"handfree-work/web-restic/internal/models"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/web_"
+	"handfree-work/octo-backup/internal/handler"
+	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -35,14 +35,14 @@ func TestUserCRUD(t *testing.T) {
 	}
 	app := handler.NewApp(&svc.ServiceContext{
 		Db:   db,
-		Auth: auth.Config{Secret: "test-secret", TokenTTL: time.Hour},
+		Auth: web_.Config{Secret: "test-secret", TokenTTL: time.Hour},
 	})
 	registered := doJSONRequest(t, app, http.MethodPost, "/api/auth/register", map[string]string{
 		"username": "admin",
 		"password": "secret",
 	})
-	if registered.Code != http.StatusCreated {
-		t.Fatalf("register status = %d, want %d", registered.Code, http.StatusCreated)
+	if registered.Code != 0 {
+		t.Fatalf("register business code = %d, want 0", registered.Code)
 	}
 	login := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
 		"username": "admin",
@@ -50,13 +50,13 @@ func TestUserCRUD(t *testing.T) {
 	})
 	token := login.Data["token"].(string)
 
-	created := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
+	created := doJSONRequest(t, app, http.MethodPost, "/api/user/create", map[string]string{
 		"username": "alice",
 		"password": "secret",
 		"nickName": "Alice",
 	}, token)
-	if created.Code != http.StatusCreated {
-		t.Fatalf("create status = %d, want %d", created.Code, http.StatusCreated)
+	if created.Code != 0 {
+		t.Fatalf("create business code = %d, want 0", created.Code)
 	}
 	if created.Data["username"] != "alice" {
 		t.Fatalf("created username = %#v, want alice", created.Data["username"])
@@ -66,53 +66,53 @@ func TestUserCRUD(t *testing.T) {
 	}
 	userID := int64(created.Data["id"].(float64))
 
-	list := doJSONRequest(t, app, http.MethodPost, "/api/users/list", nil, token)
-	if list.Code != http.StatusOK {
-		t.Fatalf("list status = %d, want %d", list.Code, http.StatusOK)
+	list := doJSONRequest(t, app, http.MethodPost, "/api/user/list", map[string]any{}, token)
+	if list.Code != 0 {
+		t.Fatalf("list business code = %d, want 0", list.Code)
 	}
-	users, ok := list.Data["items"].([]any)
+	users, ok := list.Data["records"].([]any)
 	if !ok || len(users) != 2 {
 		t.Fatalf("list items = %#v, want two users", list.Data["items"])
 	}
 
-	userPath := fmt.Sprintf("/api/users/%d", userID)
-	found := doJSONRequest(t, app, http.MethodPost, userPath+"/detail", nil, token)
-	if found.Code != http.StatusOK {
-		t.Fatalf("get status = %d, want %d", found.Code, http.StatusOK)
+	found := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userID), nil, token)
+	if found.Code != 0 {
+		t.Fatalf("get business code = %d, want 0", found.Code)
 	}
 
-	updated := doJSONRequest(t, app, http.MethodPost, userPath+"/update", map[string]string{
+	updated := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+fmt.Sprint(userID), map[string]string{
 		"nickName": "Alice Updated",
 	}, token)
-	if updated.Code != http.StatusOK {
-		t.Fatalf("update status = %d, want %d", updated.Code, http.StatusOK)
+	if updated.Code != 0 {
+		t.Fatalf("update business code = %d, want 0", updated.Code)
 	}
 	if updated.Data["nickName"] != "Alice Updated" {
 		t.Fatalf("updated nickname = %#v, want Alice Updated", updated.Data["nickName"])
 	}
 
-	deleted := doJSONRequest(t, app, http.MethodPost, userPath+"/delete", nil, token)
-	if deleted.Code != http.StatusNoContent {
-		t.Fatalf("delete status = %d, want %d", deleted.Code, http.StatusNoContent)
+	deleted := doJSONRequest(t, app, http.MethodPost, "/api/user/delete?id="+fmt.Sprint(userID), nil, token)
+	if deleted.Code != 0 {
+		t.Fatalf("delete business code = %d, want 0", deleted.Code)
 	}
 
-	notFound := doJSONRequest(t, app, http.MethodPost, userPath+"/detail", nil, token)
-	if notFound.Code != http.StatusNotFound {
-		t.Fatalf("get deleted user status = %d, want %d", notFound.Code, http.StatusNotFound)
+	notFound := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userID), nil, token)
+	if notFound.Code == 0 {
+		t.Fatalf("get deleted user response = %#v, want business error", notFound)
 	}
 
-	invalid := doJSONRequest(t, app, http.MethodPost, "/api/users/create", map[string]string{
+	invalid := doJSONRequest(t, app, http.MethodPost, "/api/user/create", map[string]string{
 		"password": "secret",
 	}, token)
-	if invalid.Code != http.StatusBadRequest {
-		t.Fatalf("invalid create status = %d, want %d", invalid.Code, http.StatusBadRequest)
+	if invalid.Code == 0 {
+		t.Fatalf("invalid create response = %#v, want business error", invalid)
 	}
 
 }
 
 type response struct {
-	Code int
-	Data map[string]any
+	HTTPStatus int
+	Code       int
+	Data       map[string]any
 }
 
 func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any, tokens ...string) response {
@@ -138,12 +138,12 @@ func doJSONRequest(t *testing.T, app *fiber.App, method, path string, body any, 
 	}
 	t.Cleanup(func() { _ = res.Body.Close() })
 
-	decoded := map[string]any{}
-	if res.StatusCode != http.StatusNoContent {
-		if err := json.NewDecoder(res.Body).Decode(&decoded); err != nil {
-			t.Fatalf("decode response: %v", err)
-		}
+	decoded := struct {
+		Code int            `json:"code"`
+		Data map[string]any `json:"data"`
+	}{}
+	if err := json.NewDecoder(res.Body).Decode(&decoded); err != nil {
+		t.Fatalf("decode response: %v", err)
 	}
-	data, _ := decoded["data"].(map[string]any)
-	return response{Code: res.StatusCode, Data: data}
+	return response{HTTPStatus: res.StatusCode, Code: decoded.Code, Data: decoded.Data}
 }

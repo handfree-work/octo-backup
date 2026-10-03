@@ -1,0 +1,7 @@
+type: access
+name: access.sftp
+title: SFTP 授权
+description: SFTP 连接授权
+version: 1.0.0
+fields: [{key: host, title: 主机, type: string, required: true}, {key: port, title: 端口, type: number, default: 22}, {key: username, title: 用户名, type: string, required: true}, {key: password, title: 密码, type: password, encrypt: true}, {key: privateKey, title: 私钥, type: textarea, encrypt: true}]
+actions: [{name: onTest, title: 测试连接, permission: write}]

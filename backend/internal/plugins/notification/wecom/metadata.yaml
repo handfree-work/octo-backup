@@ -1,0 +1,7 @@
+type: notification
+name: notification.wecom
+title: 企业微信通知
+description: 企业微信机器人通知
+version: 1.0.0
+fields: [{key: webhook, title: Webhook, type: string, required: true}, {key: key, title: Key, type: password, encrypt: true}]
+actions: [{name: onSend, title: 发送通知, permission: write}]

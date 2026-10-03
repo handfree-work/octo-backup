@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/models"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/web_"
+	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/svc"
 )
 
 var (
@@ -60,7 +60,7 @@ func NewUserService(ctx context.Context, svcCtx *svc.ServiceContext) *UserServic
 }
 
 func (l *UserService) Create(in *CreateUserInput) (*models.User, error) {
-	role := auth.RoleRead
+	role := web_.RoleRead
 	if in != nil && strings.TrimSpace(in.Role) != "" {
 		role = strings.TrimSpace(in.Role)
 	}
@@ -73,9 +73,9 @@ func (l *UserService) Register(in *CreateUserInput) (*models.User, error) {
 	if err != nil {
 		return nil, err
 	}
-	role := auth.RoleRead
+	role := web_.RoleRead
 	if count == 0 {
-		role = auth.RoleAdmin
+		role = web_.RoleAdmin
 	}
 	return l.create(in, role)
 }
@@ -84,7 +84,7 @@ func (l *UserService) create(in *CreateUserInput, role string) (*models.User, er
 	if in == nil || strings.TrimSpace(in.Username) == "" || strings.TrimSpace(in.Password) == "" {
 		return nil, fmt.Errorf("%w: 用户名和密码不能为空", ErrInvalidUser)
 	}
-	if !auth.ValidRole(role) {
+	if !web_.ValidRole(role) {
 		return nil, fmt.Errorf("%w: 用户角色无效", ErrInvalidUser)
 	}
 	dao := db_.New[models.User](db_.NewCtx(l.ctx, l.svcCtx.Db))
@@ -207,7 +207,7 @@ func (l *UserService) Update(id int64, in *UpdateUserInput) (*models.User, error
 	}
 	if in.Role != nil {
 		role := strings.TrimSpace(*in.Role)
-		if !auth.ValidRole(role) {
+		if !web_.ValidRole(role) {
 			return nil, fmt.Errorf("%w: 用户角色无效", ErrInvalidUser)
 		}
 		user.Role = role

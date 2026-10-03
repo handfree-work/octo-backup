@@ -3,6 +3,13 @@ import Error404 from "/src/views/framework/error/404.vue";
 const errorPage = [{ path: "/:pathMatch(.*)*", name: "not-found", component: Error404 }];
 export const outsideResource = [
   {
+    title: "Landing",
+    name: "landing",
+    path: "/",
+    component: "/framework/landing/index.vue",
+    meta: { title: "OctoBackup - 远程备份管理" }
+  },
+  {
     title: "outside",
     name: "outside",
     path: "/outside",

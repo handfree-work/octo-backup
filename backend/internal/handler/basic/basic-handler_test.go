@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"handfree-work/web-restic/internal/auth"
-	"handfree-work/web-restic/internal/base/db_"
-	"handfree-work/web-restic/internal/handler"
-	"handfree-work/web-restic/internal/models"
-	"handfree-work/web-restic/internal/svc"
+	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/web_"
+	"handfree-work/octo-backup/internal/handler"
+	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -33,7 +33,7 @@ func TestSwaggerDocumentation(t *testing.T) {
 	}
 	app := handler.NewApp(&svc.ServiceContext{
 		Db:   db,
-		Auth: auth.Config{Secret: "test-secret", TokenTTL: time.Hour},
+		Auth: web_.Config{Secret: "test-secret", TokenTTL: time.Hour},
 	})
 
 	index := doRawRequest(t, app, "/swagger/index.html")

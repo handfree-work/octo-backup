@@ -5,13 +5,13 @@ import (
 	"path/filepath"
 	"testing"
 
-	"handfree-work/web-restic/internal/config"
+	"handfree-work/octo-backup/internal/config"
 )
 
 func TestLoadDevConfigAndModeOverride(t *testing.T) {
 	configDir := t.TempDir()
 	writeConfig(t, configDir, "dev.yaml", `
-name: web-restic
+name: OctoBackup
 mode: dev
 server:
   port: ":3000"

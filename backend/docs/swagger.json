@@ -4,8 +4,8 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "Web Restic 的认证与用户管理 API。",
-        "title": "Web Restic API",
+        "description": "OctoBackup 的认证与用户管理 API。",
+        "title": "OctoBackup API",
         "contact": {},
         "version": "1.0"
     },

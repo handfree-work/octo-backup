@@ -1,4 +1,4 @@
-package auth
+package web_
 
 import (
 	"errors"
@@ -140,3 +140,4 @@ func bearerToken(header string) string {
 	}
 	return parts[1]
 }
+

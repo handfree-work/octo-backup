@@ -1,4 +1,4 @@
-package auth
+package web_
 
 import (
 	"testing"
@@ -26,3 +26,4 @@ func TestNewConfigDefaultsTokenTTLToSevenDays(t *testing.T) {
 		t.Fatalf("claims = %#v, want user 1 with read role", claims)
 	}
 }
+

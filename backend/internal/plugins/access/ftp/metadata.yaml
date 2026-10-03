@@ -1,0 +1,7 @@
+type: access
+name: access.ftp
+title: FTP 授权
+description: FTP 连接授权
+version: 1.0.0
+fields: [{key: host, title: 主机, type: string, required: true}, {key: port, title: 端口, type: number, default: 21}, {key: username, title: 用户名, type: string, required: true}, {key: password, title: 密码, type: password, encrypt: true}]
+actions: [{name: onTest, title: 测试连接, permission: write}]

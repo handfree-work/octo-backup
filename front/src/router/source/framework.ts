@@ -20,7 +20,8 @@ export const frameworkResource = [
     component: LayoutBasic,
     meta: {
       icon: "ion:accessibility",
-      hideInBreadcrumb: true
+      hideInBreadcrumb: true,
+      auth: true
     },
     children: [
       {

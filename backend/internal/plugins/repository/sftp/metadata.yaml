@@ -1,0 +1,7 @@
+type: repository
+name: repository.sftp
+title: SFTP 仓库
+description: SFTP Restic 仓库
+version: 1.0.0
+fields: [{key: path, title: 仓库路径, type: string, required: true}, {key: accessId, title: 授权 ID, type: number}, {key: password, title: 仓库密码, type: password, encrypt: true}]
+actions: [{name: onBuild, title: 生成 Restic 配置, permission: read}]

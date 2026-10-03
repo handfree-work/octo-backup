@@ -24,6 +24,7 @@
 - 部署：Docker Compose
 - 后端 handler 按职责放在 `internal/handler/basic`、`internal/handler/user`、`internal/handler/sys` 子包，根 `handler` 包只负责统一装配。
 - handler 文件按 `<module>-handler.go` 命名（例如 `user-handler.go`、`auth-handler.go`），单元测试文件使用对应的 `<module>-handler_test.go` 并与目标文件放在同一目录。
+- 每个 `*_test.go` 文件必须与同目录下同名的源码文件一一对应（例如 `auth-handler_test.go` 对应 `auth-handler.go`）；测试辅助代码应放在已有的对应测试文件中，不得创建没有对应源码文件的孤立测试文件。
 - 用户管理 handler 放在 `backend/internal/handler/sys/authority`，认证 handler 放在 `backend/internal/handler/basic`。
 - `sys_setting` 是仅供内部使用的系统配置表，字段固定为 `id`、`key`、`setting`，不对外提供 CRUD 接口。
 
@@ -31,7 +32,8 @@
 
 - 后端日志统一使用 zap，同时输出到终端和 `./logs/app.log`，文件日志应支持滚动切分。
 - 控制台日志使用紧凑的 `YYYY-MM-DD HH:mm:ss.SSS [LEVEL]` 前缀：时间和级别带 ANSI 颜色，WARN 为黄色、ERROR 为红色；文件日志使用相同时间格式的无 ANSI JSON。
-- 受保护路由在 handler 注册时使用 `auth.Require` 声明 `guest`、`login`、`admin`、`write` 或 `read` 权限，由认证中间件统一校验 JWT。
+- 认证配置、JWT 校验、权限常量和中间件统一放在 `internal/base/web_`。
+- 业务 POST 路由统一使用 `internal/base/web_` 的 `Route` 结构和 `RegisterRoutes` 注册；注册时传入认证配置，`Route.Permission` 为空时不添加权限中间件，非空时由 `web_.Require` 校验。新增路由字段应扩展通用 `Route` 结构。
 - JWT 默认有效期为 7 天；生产环境通过 `JWT_SECRET` 提供密钥，不在代码中硬编码生产密钥。
 - 前端登录与注册直接调用 `/api/auth/login`、`/api/auth/register`，并按后端 `{ data: ... }` 响应保存 JWT 和用户角色；开发代理必须保留 `/api` 前缀。
 
@@ -44,7 +46,7 @@
 - 所有业务数据必须放在 `data` 字段内；分页数据统一使用 `{offset, limit, records, total}` 结构，service 层分页查询使用 `FindPage` 方法。
 - 前端业务 API 文件就近放置在对应功能模块目录（例如用户模块使用 `views/sys/authority/user/api.ts`），不再集中放入全局 API 模块目录。
 - 登录、注册等认证 API 统一放置在 `views/framework/auth/api.ts`；用户管理模块 API 仅包含用户数据的增删改查。
-- 前端登录、注册及用户密码变更请求在发送前使用 MD5 对密码做一次 hash；密码为空时不发送密码字段，表示不修改。
+- 前端登录、注册及用户密码变更请求在发送前使用 SHA-256 对密码做一次 hash；密码为空时不发送密码字段，表示不修改。
 - 用户资源使用单数路径 `/api/user`；业务动作路径固定为 `/create`、`/update`、`/delete?id=`、`/info?id=`、`/list`、`/page`、`/batchDelete`，统一使用 POST。
 - 存储仓库管理页面使用 `views/sys/repository`，对应后端资源路径为 `/api/repository`；仓库密码只写入不回显，更新时空密码表示不修改。
 
@@ -56,5 +58,6 @@
 
 ## 开发与验证
 
+- 前端代码修改后使用 `front` 目录中的 Prettier 执行格式化，并使用 `prettier --check` 检查相关文件。
 - 开发完成后不自动启动前端、后端或组合服务；由用户根据 VS Code 调试配置或项目命令自行启动和验证。
 - 交付时说明已执行的自动化检查、构建结果以及未解决的既有问题。
