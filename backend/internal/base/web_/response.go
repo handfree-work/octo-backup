@@ -1,17 +1,55 @@
 package web_
 
-import "github.com/gofiber/fiber/v3"
+import (
+	"handfree-work/octo-backup/internal/base/error_"
+
+	"github.com/gofiber/fiber/v3"
+)
 
 // Success returns the standard business response envelope.
 func Success(c fiber.Ctx, data any) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": 0, "message": "成功", "data": data})
 }
 
-// Error returns a business error while keeping the HTTP status at 200.
-func Error(c fiber.Ctx, code int, message string) error {
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": code, "message": message, "data": fiber.Map{}})
+// Error returns a generic business error while keeping the HTTP status at 200.
+func Error(c fiber.Ctx, message string) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": 1, "message": message, "data": fiber.Map{}})
 }
 
-func BusinessError(c fiber.Ctx, err error) error {
-	return Error(c, 1, err.Error())
+// BusinessError returns a coded business error while keeping the HTTP status at 200.
+func BusinessError(c fiber.Ctx, code int, err error) error {
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"code": code, "message": err.Error(), "data": fiber.Map{}})
+}
+
+// ErrorHandler 将业务 handler 返回的错误统一转换为标准响应。
+func ErrorHandler(c fiber.Ctx, err error) error {
+	apiErr := error_.NewApiError(err)
+	return BusinessError(c, apiErr.Code, apiErr)
+}
+
+// HandleJSON 统一处理 JSON 请求体、业务调用和成功响应。
+// 业务函数只需返回数据或错误，错误交给 Fiber 的 ErrorHandler 统一转换。
+func HandleJSON[T any](action func(fiber.Ctx, *T) (any, error)) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		var input T
+		if err := c.Bind().Body(&input); err != nil {
+			return error_.NewRequestError("请求体格式错误")
+		}
+		data, err := action(c, &input)
+		if err != nil {
+			return err
+		}
+		return Success(c, data)
+	}
+}
+
+// Handle 统一处理无请求体业务、成功响应和错误返回。
+func Handle(action func(fiber.Ctx) (any, error)) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		data, err := action(c)
+		if err != nil {
+			return err
+		}
+		return Success(c, data)
+	}
 }

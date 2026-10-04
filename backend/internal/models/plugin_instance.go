@@ -2,7 +2,7 @@ package models
 
 import "handfree-work/octo-backup/internal/base/db_"
 
-type Plugin struct {
+type PluginInstance struct {
 	db_.BaseModel
 	Name        string `json:"name" gorm:"size:100;not null"`
 	PluginType  string `json:"pluginType" gorm:"size:30;not null;index"`
@@ -11,5 +11,4 @@ type Plugin struct {
 	Description string `json:"description" gorm:"size:500"`
 }
 
-func (Plugin) TableName() string { return "plugin" }
-
+func (PluginInstance) TableName() string { return "plugin_instance" }

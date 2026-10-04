@@ -5,12 +5,14 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"handfree-work/octo-backup/internal/base/db_"
+	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/models"
 	"handfree-work/octo-backup/internal/modules/plugin"
 	"handfree-work/octo-backup/internal/modules/plugin/secret"
@@ -19,39 +21,62 @@ import (
 
 const pluginMasterKeySetting = "plugin.master-key.v1"
 
-type PluginService struct {
+type PluginInstanceService struct {
 	ctx    context.Context
 	svcCtx *svc.ServiceContext
 }
 
-func NewPluginService(ctx context.Context, s *svc.ServiceContext) *PluginService {
-	return &PluginService{ctx: ctx, svcCtx: s}
+func NewPluginInstanceService(ctx context.Context, s *svc.ServiceContext) *PluginInstanceService {
+	return &PluginInstanceService{ctx: ctx, svcCtx: s}
 }
 
-type PluginInput struct {
+type PluginInstanceInput struct {
 	Name        string         `json:"name"`
 	PluginType  string         `json:"pluginType"`
 	PluginName  string         `json:"pluginName"`
 	Config      map[string]any `json:"config"`
 	Description string         `json:"description"`
 }
-type PluginPageQuery struct {
+type PluginInstancePageQuery struct {
 	Offset     int64  `json:"offset"`
 	Limit      int64  `json:"limit"`
 	PluginType string `json:"pluginType"`
+	PluginName string `json:"pluginName"`
 	Name       string `json:"name"`
 }
-type PluginPageResult struct {
+type PluginInstancePageResult struct {
 	Offset  int64            `json:"offset"`
 	Limit   int64            `json:"limit"`
 	Records []map[string]any `json:"records"`
 	Total   int64            `json:"total"`
 }
 
-func (s *PluginService) Update(id int64, in *PluginInput) (map[string]any, error) {
-	row, err := db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
+func (s *PluginInstanceService) GetSimpleByIDs(ids []int64) ([]map[string]any, error) {
+	if len(ids) == 0 {
+		return []map[string]any{}, nil
+	}
+	dao := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db))
+	rows, err := dao.FindList(&models.PluginInstance{}, nil, func(db *gorm.DB) {
+		db.Where("id IN ?", ids)
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		icon := ""
+		if definition, ok := s.svcCtx.Plugins.Get(row.PluginName); ok {
+			icon = definition.Metadata.Icon
+		}
+		out = append(out, map[string]any{"id": row.Id, "name": row.Name, "icon": icon, "pluginName": row.PluginName, "pluginType": row.PluginType})
+	}
+	return out, nil
+}
+
+func (s *PluginInstanceService) Update(id int64, in *PluginInstanceInput) (map[string]any, error) {
+	row, err := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
 	if err != nil || row == nil {
-		return nil, fmt.Errorf("插件实例不存在")
+		return nil, error_.NewTextError("插件实例不存在")
 	}
 	if in == nil {
 		return s.present(row), nil
@@ -63,7 +88,7 @@ func (s *PluginService) Update(id int64, in *PluginInput) (map[string]any, error
 	if in.Config != nil {
 		definition, ok := s.svcCtx.Plugins.Get(row.PluginName)
 		if !ok {
-			return nil, fmt.Errorf("插件不存在")
+			return nil, error_.NewTextError("插件不存在")
 		}
 		codec, err := s.secretCodec()
 		if err != nil {
@@ -72,7 +97,7 @@ func (s *PluginService) Update(id int64, in *PluginInput) (map[string]any, error
 		var existing map[string]any
 		if row.ConfigYAML != "" {
 			if existing, err = codec.DecodeYAML([]byte(row.ConfigYAML), secretFields(definition.Metadata.Fields)); err != nil {
-				return nil, fmt.Errorf("解析已有插件配置失败")
+				return nil, error_.NewTextError("解析已有插件配置失败")
 			}
 		}
 		config := mergePluginConfig(existing, in.Config, definition.Metadata.Fields)
@@ -89,25 +114,36 @@ func (s *PluginService) Update(id int64, in *PluginInput) (map[string]any, error
 		}
 		row.ConfigYAML = string(raw)
 	}
-	if _, err = db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db)).UpdateById(id, row); err != nil {
+	if _, err = db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).UpdateById(id, row); err != nil {
 		return nil, err
 	}
 	return s.present(row), nil
 }
 
-func (s *PluginService) Metadata(t, name string) []plugin.Metadata {
+func (s *PluginInstanceService) Info(id int64) (map[string]any, error) {
+	row, err := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, error_.NewTextError("插件实例不存在")
+	}
+	return s.present(row), nil
+}
+
+func (s *PluginInstanceService) Metadata(t, name string) []plugin.Metadata {
 	return s.svcCtx.Plugins.Metadata(plugin.PluginType(t), name)
 }
-func (s *PluginService) Create(in *PluginInput) (map[string]any, error) {
+func (s *PluginInstanceService) Create(in *PluginInstanceInput) (map[string]any, error) {
 	if in == nil || strings.TrimSpace(in.Name) == "" || in.PluginName == "" {
-		return nil, fmt.Errorf("插件名称和类型不能为空")
+		return nil, error_.NewTextError("插件名称和类型不能为空")
 	}
 	d, ok := s.svcCtx.Plugins.Get(in.PluginName)
 	if !ok {
-		return nil, fmt.Errorf("插件不存在")
+		return nil, error_.NewTextError("插件不存在")
 	}
 	if in.PluginType != "" && string(d.Metadata.Type) != in.PluginType {
-		return nil, fmt.Errorf("插件类型不匹配")
+		return nil, error_.NewTextError("插件类型不匹配")
 	}
 	config := mergePluginConfig(nil, in.Config, d.Metadata.Fields)
 	if err := validateRequiredPluginFields(config, d.Metadata.Fields); err != nil {
@@ -125,17 +161,17 @@ func (s *PluginService) Create(in *PluginInput) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	row := &models.Plugin{Name: strings.TrimSpace(in.Name), PluginType: string(d.Metadata.Type), PluginName: in.PluginName, ConfigYAML: string(raw), Description: strings.TrimSpace(in.Description)}
-	if err = db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db)).Create(row); err != nil {
+	row := &models.PluginInstance{Name: strings.TrimSpace(in.Name), PluginType: string(d.Metadata.Type), PluginName: in.PluginName, ConfigYAML: string(raw), Description: strings.TrimSpace(in.Description)}
+	if err = db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).Create(row); err != nil {
 		return nil, err
 	}
 	return s.present(row), nil
 }
-func (s *PluginService) Page(q *PluginPageQuery) (*PluginPageResult, error) {
+func (s *PluginInstanceService) Page(q *PluginInstancePageQuery) (*PluginInstancePageResult, error) {
 	off, lim := int64(0), int64(20)
-	typ := ""
+	typ, pluginName := "", ""
 	if q != nil {
-		off, lim, typ = q.Offset, q.Limit, q.PluginType
+		off, lim, typ, pluginName = q.Offset, q.Limit, q.PluginType, q.PluginName
 	}
 	if off < 0 {
 		off = 0
@@ -146,38 +182,50 @@ func (s *PluginService) Page(q *PluginPageQuery) (*PluginPageResult, error) {
 	if lim > 1000 {
 		lim = 1000
 	}
-	dao := db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db))
+	dao := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db))
 	page := &db_.Page{Start: off, Limit: lim}
-	query := &models.Plugin{}
+	query := &models.PluginInstance{}
 	if typ != "" {
 		query.PluginType = typ
+	}
+	if pluginName != "" {
+		query.PluginName = pluginName
 	}
 	var filters []func(*gorm.DB)
 	if q != nil && strings.TrimSpace(q.Name) != "" {
 		name := strings.TrimSpace(q.Name)
 		filters = append(filters, func(db *gorm.DB) { db.Where("name LIKE ?", "%"+name+"%") })
 	}
-	rows, err := dao.FindPage(&db_.PageReq[models.Plugin]{Query: query, Page: page}, filters...)
+	rows, err := dao.FindPage(&db_.PageReq[models.PluginInstance]{Query: query, Page: page}, filters...)
 	if err != nil {
 		return nil, err
 	}
 	out := []map[string]any{}
 	for i := range *rows {
-		out = append(out, s.present(&(*rows)[i]))
+		row := &(*rows)[i]
+		out = append(out, map[string]any{
+			"id":          row.Id,
+			"name":        row.Name,
+			"pluginType":  row.PluginType,
+			"pluginName":  row.PluginName,
+			"description": row.Description,
+			"createdAt":   row.CreatedAt,
+			"updatedAt":   row.UpdatedAt,
+		})
 	}
-	return &PluginPageResult{Offset: off, Limit: lim, Records: out, Total: page.Total}, nil
+	return &PluginInstancePageResult{Offset: off, Limit: lim, Records: out, Total: page.Total}, nil
 }
-func (s *PluginService) Action(id int64, action string, params map[string]any) (any, error) {
-	row, err := db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
+func (s *PluginInstanceService) Action(id int64, action string, params map[string]any) (any, error) {
+	row, err := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
 	if err != nil || row == nil {
-		return nil, fmt.Errorf("插件实例不存在")
+		return nil, error_.NewTextError("插件实例不存在")
 	}
 	definition, ok := s.svcCtx.Plugins.Get(row.PluginName)
 	if !ok {
-		return nil, fmt.Errorf("插件不存在")
+		return nil, error_.NewTextError("插件不存在")
 	}
 	if row.PluginType != string(definition.Metadata.Type) {
-		return nil, fmt.Errorf("插件实例类型与插件定义不匹配")
+		return nil, error_.NewTextError("插件实例类型与插件定义不匹配")
 	}
 	codec, err := s.secretCodec()
 	if err != nil {
@@ -187,37 +235,81 @@ func (s *PluginService) Action(id int64, action string, params map[string]any) (
 	if err != nil {
 		return nil, err
 	}
-	return s.svcCtx.Plugins.ExecuteWithConfig(s.ctx, row.PluginName, action, config, params)
+	if definition.Metadata.Type == plugin.TypeRepository || definition.Metadata.Type == plugin.TypeSource {
+		accessID := config["accessId"]
+		if params != nil && (accessID == nil || strings.TrimSpace(fmt.Sprint(accessID)) == "") {
+			accessID = params["accessId"]
+		}
+		if accessID != nil && strings.TrimSpace(fmt.Sprint(accessID)) != "" {
+			access, err := s.resolveAccess(accessID)
+			if err != nil {
+				return nil, err
+			}
+			config["access"] = access
+		}
+	}
+	result, err := s.svcCtx.Plugins.ExecuteWithConfig(s.ctx, row.PluginName, action, config, params)
+	if err != nil {
+		return nil, error_.NewTextError(fmt.Sprintf("插件 %s action %s 执行失败: %v", row.PluginName, action, err))
+	}
+	return result, nil
 }
 
-func (s *PluginService) Delete(id int64) error {
-	dao := db_.New[models.Plugin](db_.NewCtx(s.ctx, s.svcCtx.Db))
+func (s *PluginInstanceService) resolveAccess(value any) (map[string]any, error) {
+	id, err := strconv.ParseInt(strings.TrimSpace(fmt.Sprint(value)), 10, 64)
+	if err != nil || id <= 0 {
+		return nil, error_.NewTextError("仓库授权 ID 无效")
+	}
+	row, err := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db)).GetById(id)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil || row.PluginType != string(plugin.TypeAccess) {
+		return nil, error_.NewTextError("仓库授权不存在")
+	}
+	definition, ok := s.svcCtx.Plugins.Get(row.PluginName)
+	if !ok || definition.Metadata.Type != plugin.TypeAccess {
+		return nil, error_.NewTextError("授权插件不存在")
+	}
+	codec, err := s.secretCodec()
+	if err != nil {
+		return nil, err
+	}
+	config, err := codec.DecodeYAML([]byte(row.ConfigYAML), secretFields(definition.Metadata.Fields))
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"id": row.Id, "name": row.Name, "pluginName": row.PluginName, "config": config}, nil
+}
+
+func (s *PluginInstanceService) Delete(id int64) error {
+	dao := db_.New[models.PluginInstance](db_.NewCtx(s.ctx, s.svcCtx.Db))
 	row, err := dao.GetById(id)
 	if err != nil {
 		return err
 	}
 	if row == nil {
-		return fmt.Errorf("插件实例不存在")
+		return error_.NewTextError("插件实例不存在")
 	}
 	if row.PluginType == string(plugin.TypeAccess) {
-		var repositories []models.Plugin
-		if err := s.svcCtx.Db.Where("plugin_type = ?", string(plugin.TypeRepository)).Find(&repositories).Error; err != nil {
+		repositories, err := dao.FindList(&models.PluginInstance{PluginType: string(plugin.TypeRepository)}, nil)
+		if err != nil {
 			return err
 		}
 		for _, repository := range repositories {
 			referenced, err := repositoryReferencesAccess(repository.ConfigYAML, id)
 			if err != nil {
-				return fmt.Errorf("检查仓库授权引用失败")
+				return error_.NewTextError("检查仓库授权引用失败")
 			}
 			if referenced {
-				return fmt.Errorf("授权仍被仓库引用")
+				return error_.NewTextError("授权仍被仓库引用")
 			}
 		}
 	}
 	_, err = dao.Delete(&id)
 	return err
 }
-func (s *PluginService) present(row *models.Plugin) map[string]any {
+func (s *PluginInstanceService) present(row *models.PluginInstance) map[string]any {
 	var fields []plugin.FieldSpec
 	if definition, ok := s.svcCtx.Plugins.Get(row.PluginName); ok {
 		fields = definition.Metadata.Fields
@@ -237,8 +329,19 @@ func mergePluginConfig(existing, incoming map[string]any, fields []plugin.FieldS
 			merged[field.Key] = value
 		}
 		value, ok := incoming[field.Key]
-		if !ok || (field.Encrypt && value == "") {
+		if !ok {
 			continue
+		}
+		if text, ok := value.(string); ok && text == "" {
+			merged[field.Key] = ""
+			continue
+		}
+		if field.Encrypt {
+			if text, ok := value.(string); ok {
+				if old, ok := existing[field.Key].(string); ok && text == maskSecret(old) {
+					continue
+				}
+			}
 		}
 		merged[field.Key] = value
 	}
@@ -252,7 +355,7 @@ func validateRequiredPluginFields(config map[string]any, fields []plugin.FieldSp
 		}
 		value, ok := config[field.Key]
 		if !ok || value == nil || strings.TrimSpace(fmt.Sprint(value)) == "" {
-			return fmt.Errorf("%s不能为空", field.Title)
+			return error_.NewTextError(fmt.Sprintf("%s不能为空", field.Title))
 		}
 	}
 	return nil
@@ -275,7 +378,7 @@ func secretFields(fields []plugin.FieldSpec) secret.FieldMetadata {
 	return metadata
 }
 
-func (s *PluginService) secretCodec() (*secret.Codec, error) {
+func (s *PluginInstanceService) secretCodec() (*secret.Codec, error) {
 	db := s.svcCtx.Db
 	var setting models.SysSetting
 	err := db.Where("key = ?", pluginMasterKeySetting).First(&setting).Error
@@ -303,11 +406,11 @@ func (s *PluginService) secretCodec() (*secret.Codec, error) {
 func codecFromSetting(value string) (*secret.Codec, error) {
 	key, err := base64.RawStdEncoding.DecodeString(value)
 	if err != nil {
-		return nil, fmt.Errorf("插件主密钥无效")
+		return nil, error_.NewTextError("插件主密钥无效")
 	}
 	codec, err := secret.NewCodec(key)
 	if err != nil {
-		return nil, fmt.Errorf("初始化插件加密器失败")
+		return nil, error_.NewTextError("初始化插件加密器失败")
 	}
 	return codec, nil
 }
@@ -328,11 +431,8 @@ func presentPluginConfig(configYAML string, fields []plugin.FieldSpec, decoded m
 		}
 		config["configured"] = true
 		if field.Encrypt {
-			config[field.Key+"Configured"] = true
 			if text, ok := value.(string); ok {
-				masked := maskSecret(text)
-				config[field.Key] = masked
-				config[field.Key+"Original"] = masked
+				config[field.Key] = maskSecret(text)
 			}
 			continue
 		}

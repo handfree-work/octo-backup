@@ -8,6 +8,9 @@ fields:
   - {key: port, title: 端口, type: number, default: 22}
   - {key: username, title: 用户名, type: string, required: true}
   - {key: password, title: 密码, type: password, encrypt: true}
-  - {key: privateKey, title: 私钥, type: textarea, encrypt: true}
+  - {key: privateKey, title: 私钥登录, type: textarea, encrypt: true, component: {name: plugin-file-input, placeholder: "选择私钥文件或直接粘贴"}}
+  - {key: privateKeyPassword, title: 私钥密码, type: password, encrypt: true, placeholder: "如果私钥有密码请填写"}
+  - {key: timeout, title: 超时时间, type: number, default: 30, placeholder: "执行命令的超时时间，单位秒"}
+  - {key: jumpAccessId, title: 跳板机 SSH 授权, type: number, component: {name: access-selector}, mergeScript: 'return { component: { pluginName: "access.ssh", placeholder: "目标主机不可直连时选择" } }'}
 actions:
   - {name: onTest, title: 测试连接, permission: write}

@@ -1,12 +1,33 @@
-import { AddReq, CreateCrudOptionsProps, CreateCrudOptionsRet, DelReq, dict, EditReq } from "@fast-crud/fast-crud";
-import { createPlugin, deletePlugin, getPluginPage, type PluginField, type PluginInstance, type PluginMetadata, updatePlugin } from "./api";
-import { collectPluginConfig } from "./config";
-import set from "lodash-es/set";
+import { AddReq, compute, CreateCrudOptionsProps, CreateCrudOptionsRet, DelReq, dict, EditReq } from "@fast-crud/fast-crud";
+import { usePluginDefineStore } from "/src/store/modules/plugin-define";
+import {
+  createPluginInstance,
+  deletePluginInstance,
+  executePluginInstanceAction,
+  getPluginInstanceInfo,
+  getPluginInstancePage,
+  type PluginField,
+  type PluginInstance,
+  type PluginMetadata,
+  updatePluginInstance
+} from "./plugin-api";
 
-export type PluginCrudContext = { pluginType: string; metadata: PluginMetadata[] };
+export type PluginCrudContext = { pluginType: string; pluginName?: string; metadata: PluginMetadata[] };
+
+export function setPluginAccessType(form: Record<string, any>, accessType?: string, resetAccess = false) {
+  form.config ||= {};
+  if (resetAccess && form.config.accessType && form.config.accessType !== accessType) {
+    form.config.accessId = undefined;
+  }
+  form.config.accessType = accessType;
+}
 
 function getComponent(field: PluginField): Record<string, unknown> {
   const configured = { ...(field.component || {}) } as Record<string, unknown>;
+  if (field.mergeScript) {
+    const script = new Function("ctx", field.mergeScript) as (ctx: { compute: typeof compute }) => { component?: Record<string, unknown> };
+    Object.assign(configured, script({ compute }).component || {});
+  }
   return {
     vModel: "value",
     ...configured,
@@ -16,6 +37,7 @@ function getComponent(field: PluginField): Record<string, unknown> {
 
 export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginInstance, PluginCrudContext>): CreateCrudOptionsRet<PluginInstance> {
   const { metadata, pluginType } = context;
+  const pluginDefineStore = usePluginDefineStore();
   const dynamicFieldKeys = new Set<string>();
   const columns: Record<string, any> = {
     id: { title: "ID", type: "text", form: { show: false }, column: { width: 80 } },
@@ -24,16 +46,30 @@ export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginI
       title: "插件类型",
       type: "dict-select",
       order: -10,
-      dict: dict({ data: metadata.map((item) => ({ value: item.name, label: item.title })) }),
+      dict: dict({
+        getData: async () => {
+          const defines = await pluginDefineStore.init();
+          return defines.filter((item) => item.type === pluginType).map((item) => ({ value: item.name, label: item.title }));
+        }
+      }),
+      addForm: { component: { disabled: context.pluginName != null } },
       editForm: { component: { disabled: true } },
       form: {
         order: -10,
         rules: [{ required: true, message: "请选择插件类型" }],
-        component: { showSearch: true },
+        component: {
+          showSearch: true,
+          on: {
+            selectedChange: ({ form }: { form: Record<string, any> }) => {
+              setPluginAccessType(form, metadata.find((item) => item.name === form.pluginName)?.accessType, true);
+            }
+          }
+        },
         valueChange: {
           immediate: true,
           handle: ({ value, form, mode, immediate }: { value: string; form: Record<string, any>; mode: string; immediate: boolean }) => {
             buildDynamicFields(value, form, mode);
+            setPluginAccessType(form, metadata.find((item) => item.name === value)?.accessType, !immediate);
           }
         }
       }
@@ -69,20 +105,47 @@ export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginI
       formColumns[key] = fieldColumn;
       dynamicFieldKeys.add(key);
     });
+    if (pluginType === "access") {
+      const key = "__pluginTest";
+      formColumns[key] = {
+        title: "测试",
+        type: "text",
+        key,
+        order: 99,
+        component: {
+          name: "a-button",
+          type: "primary",
+          children: "测试连接",
+          on: {
+            click: async () => {
+              if (!form.id) return;
+              await executePluginInstanceAction(form.id, "onTest");
+            }
+          }
+        }
+      };
+      dynamicFieldKeys.add(key);
+    }
     console.log('crudBinding.value[mode + "Form"].columns', formColumns);
   }
 
   return {
     crudOptions: {
       request: {
-        pageRequest: (query: any) => {
-          const pageSize = query.pageSize ?? query.limit ?? 20;
-          const offset = query.offset ?? Math.max(0, ((query.currentPage ?? 1) - 1) * pageSize);
-          return getPluginPage({ offset, limit: pageSize, pluginType, name: query.query?.name });
+        infoRequest: async ({ row, mode }: { row: PluginInstance; mode: string }) => {
+          if (mode === "add") {
+            return { pluginName: context.pluginName };
+          }
+          return await getPluginInstanceInfo(row.id);
         },
-        addRequest: async ({ form }: AddReq) => createPlugin({ name: form.name, description: form.description || "", pluginType, pluginName: form.pluginName, config: collectPluginConfig(form, metadata) }),
-        editRequest: async ({ form, row }: EditReq) => updatePlugin(row.id, { name: form.name, description: form.description || "", config: collectPluginConfig(form, metadata) }),
-        delRequest: async ({ row }: DelReq) => deletePlugin(row.id)
+        pageRequest: async (query: any) => {
+          const limit = query.limit ?? 20;
+          const offset = query.offset;
+          return getPluginInstancePage({ offset, limit, pluginType, pluginName: context.pluginName, name: query.query?.name });
+        },
+        addRequest: ({ form }: AddReq) => createPluginInstance({ name: form.name, description: form.description || "", pluginType, pluginName: form.pluginName, config: form.config || {} }),
+        editRequest: ({ form, row }: EditReq) => updatePluginInstance(row.id, { name: form.name, description: form.description || "", config: form.config || {} }),
+        delRequest: async ({ row }: DelReq) => deletePluginInstance(row.id)
       },
       rowHandle: { fixed: "right" },
       columns: columns as any

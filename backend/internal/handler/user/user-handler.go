@@ -3,6 +3,8 @@ package user
 import (
 	"strconv"
 
+	"handfree-work/octo-backup/internal/base/error_"
+	"handfree-work/octo-backup/internal/base/error_/code_"
 	"handfree-work/octo-backup/internal/base/web_"
 	logic "handfree-work/octo-backup/internal/service"
 	"handfree-work/octo-backup/internal/svc"
@@ -14,13 +16,13 @@ import (
 func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
 	users := app.Group("/api/user")
 	web_.RegisterRoutes(users, svcCtx.Auth,
-		web_.Route{Path: "/create", Permission: web_.Admin, Handler: createUser(svcCtx)},
-		web_.Route{Path: "/list", Permission: web_.Read, Handler: listUsers(svcCtx)},
-		web_.Route{Path: "/page", Permission: web_.Read, Handler: listUsers(svcCtx)},
-		web_.Route{Path: "/info", Permission: web_.Read, Handler: getUser(svcCtx)},
-		web_.Route{Path: "/update", Permission: web_.Write, Handler: updateUser(svcCtx)},
-		web_.Route{Path: "/delete", Permission: web_.Admin, Handler: deleteUser(svcCtx)},
-		web_.Route{Path: "/batchDelete", Permission: web_.Admin, Handler: batchDeleteUser(svcCtx)},
+		web_.Route{Path: "/create", Permission: web_.Admin, Handler: web_.HandleJSON(createUser(svcCtx))},
+		web_.Route{Path: "/list", Permission: web_.Read, Handler: web_.HandleJSON(listUsers(svcCtx))},
+		web_.Route{Path: "/page", Permission: web_.Read, Handler: web_.HandleJSON(listUsers(svcCtx))},
+		web_.Route{Path: "/info", Permission: web_.Read, Handler: web_.Handle(getUser(svcCtx))},
+		web_.Route{Path: "/update", Permission: web_.Write, Handler: web_.HandleJSON(updateUser(svcCtx))},
+		web_.Route{Path: "/delete", Permission: web_.Admin, Handler: web_.Handle(deleteUser(svcCtx))},
+		web_.Route{Path: "/batchDelete", Permission: web_.Admin, Handler: web_.HandleJSON(batchDeleteUser(svcCtx))},
 	)
 }
 
@@ -38,17 +40,9 @@ func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
 // @Failure 403 {object} ErrorResponse
 // @Failure 409 {object} ErrorResponse
 // @Router /api/users/create [post]
-func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		var input logic.CreateUserInput
-		if err := c.Bind().Body(&input); err != nil {
-			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
-		}
-		user, err := logic.NewUserService(c.Context(), svcCtx).Create(&input)
-		if err != nil {
-			return writeUserError(c, err)
-		}
-		return web_.Success(c, user)
+func createUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.CreateUserInput) (any, error) {
+	return func(c fiber.Ctx, input *logic.CreateUserInput) (any, error) {
+		return logic.NewUserService(c.Context(), svcCtx).Create(input)
 	}
 }
 
@@ -62,17 +56,9 @@ func createUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 401 {object} ErrorResponse
 // @Failure 403 {object} ErrorResponse
 // @Router /api/users/list [post]
-func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		var query logic.UserPageQuery
-		if err := c.Bind().Body(&query); err != nil {
-			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
-		}
-		page, err := logic.NewUserService(c.Context(), svcCtx).FindPage(&query)
-		if err != nil {
-			return writeUserError(c, err)
-		}
-		return web_.Success(c, page)
+func listUsers(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UserPageQuery) (any, error) {
+	return func(c fiber.Ctx, query *logic.UserPageQuery) (any, error) {
+		return logic.NewUserService(c.Context(), svcCtx).FindPage(query)
 	}
 }
 
@@ -89,17 +75,13 @@ func listUsers(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /api/users/{id}/detail [post]
-func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
+func getUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
+	return func(c fiber.Ctx) (any, error) {
 		id, err := parseUserID(c)
 		if err != nil {
-			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
 		}
-		user, err := logic.NewUserService(c.Context(), svcCtx).Get(id)
-		if err != nil {
-			return writeUserError(c, err)
-		}
-		return web_.Success(c, user)
+		return logic.NewUserService(c.Context(), svcCtx).Get(id)
 	}
 }
 
@@ -118,31 +100,23 @@ func getUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /api/users/{id}/update [post]
-func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
+func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInput) (any, error) {
+	return func(c fiber.Ctx, input *logic.UpdateUserInput) (any, error) {
 		id, err := parseUserID(c)
 		if err != nil {
-			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
-		}
-		var input logic.UpdateUserInput
-		if err := c.Bind().Body(&input); err != nil {
-			return writeError(c, fiber.StatusBadRequest, "请求体格式错误")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
 		}
 		claims, ok := web_.ClaimsFromContext(c)
 		if !ok {
-			return writeError(c, fiber.StatusUnauthorized, "未登录或登录已过期")
+			return nil, error_.NewCodeTextError(code_.AuthError, "未登录或登录已过期")
 		}
 		if claims.Role != web_.RoleAdmin && claims.UserID != id {
-			return writeError(c, fiber.StatusForbidden, "没有访问权限")
+			return nil, error_.NewCodeTextError(code_.PermissionError, "没有访问权限")
 		}
 		if claims.Role != web_.RoleAdmin && input.Role != nil {
-			return writeError(c, fiber.StatusForbidden, "只有管理员可以调整角色")
+			return nil, error_.NewCodeTextError(code_.PermissionError, "只有管理员可以调整角色")
 		}
-		user, err := logic.NewUserService(c.Context(), svcCtx).Update(id, &input)
-		if err != nil {
-			return writeUserError(c, err)
-		}
-		return web_.Success(c, user)
+		return logic.NewUserService(c.Context(), svcCtx).Update(id, input)
 	}
 }
 
@@ -159,47 +133,40 @@ func updateUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 403 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Router /api/users/{id}/delete [post]
-func deleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
+func deleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
+	return func(c fiber.Ctx) (any, error) {
 		id, err := parseUserID(c)
 		if err != nil {
-			return writeError(c, fiber.StatusBadRequest, "用户 ID 无效")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
 		}
 		if err := logic.NewUserService(c.Context(), svcCtx).Delete(id); err != nil {
-			return writeUserError(c, err)
+			return nil, err
 		}
-		return web_.Success(c, fiber.Map{})
+		return fiber.Map{}, nil
 	}
 }
 
-func batchDeleteUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		var input struct {
-			IDs []int64 `json:"ids"`
-		}
-		if err := c.Bind().Body(&input); err != nil || len(input.IDs) == 0 {
-			return writeError(c, fiber.StatusBadRequest, "用户 ID 不能为空")
+type batchDeleteInput struct {
+	IDs []int64 `json:"ids"`
+}
+
+func batchDeleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *batchDeleteInput) (any, error) {
+	return func(c fiber.Ctx, input *batchDeleteInput) (any, error) {
+		if len(input.IDs) == 0 {
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 不能为空")
 		}
 		service := logic.NewUserService(c.Context(), svcCtx)
 		for _, id := range input.IDs {
 			if err := service.Delete(id); err != nil {
-				return writeUserError(c, err)
+				return nil, err
 			}
 		}
-		return web_.Success(c, fiber.Map{})
+		return fiber.Map{}, nil
 	}
 }
 
 func parseUserID(c fiber.Ctx) (int64, error) {
 	return strconv.ParseInt(c.Query("id"), 10, 64)
-}
-
-func writeUserError(c fiber.Ctx, err error) error {
-	return web_.BusinessError(c, err)
-}
-
-func writeError(c fiber.Ctx, status int, message string) error {
-	return web_.Error(c, status, message)
 }
 
 // ErrorResponse 表示接口错误响应。

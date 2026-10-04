@@ -144,7 +144,7 @@ function install(app: any, options: any = {}) {
             span: null
           },
           wrapper: {
-            saveRemind: true
+            saveRemind: false
             // inner: true,
             // innerContainerSelector: "main.fs-framework-content"
           }

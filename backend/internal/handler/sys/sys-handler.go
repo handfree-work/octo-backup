@@ -8,4 +8,7 @@ import (
 )
 
 // Register 预留系统模块的路由装配入口。
-func Register(app *fiber.App, svcCtx *svc.ServiceContext) { RegisterPlugin(app, svcCtx) }
+func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
+	RegisterPlugin(app, svcCtx)
+	RegisterBackupPlan(app, svcCtx)
+}

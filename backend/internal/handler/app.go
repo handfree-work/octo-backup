@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"handfree-work/octo-backup/internal/base/web_"
 	"handfree-work/octo-backup/internal/handler/basic"
 	sysHandler "handfree-work/octo-backup/internal/handler/sys"
 	userHandler "handfree-work/octo-backup/internal/handler/user"
@@ -12,7 +13,7 @@ import (
 
 // NewApp 创建用于测试及嵌入场景的完整 HTTP 应用。
 func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
-	app := fiber.New()
+	app := fiber.New(fiber.Config{ErrorHandler: web_.ErrorHandler})
 	app.Use(recover.New())
 	Register(app, svcCtx)
 	return app

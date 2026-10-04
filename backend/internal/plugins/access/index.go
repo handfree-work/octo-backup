@@ -7,7 +7,6 @@ import (
 	"handfree-work/octo-backup/internal/plugins/access/ftp"
 	"handfree-work/octo-backup/internal/plugins/access/minio"
 	"handfree-work/octo-backup/internal/plugins/access/s3"
-	"handfree-work/octo-backup/internal/plugins/access/sftp"
 	"handfree-work/octo-backup/internal/plugins/access/ssh"
 	"handfree-work/octo-backup/internal/plugins/access/tencent"
 )
@@ -17,7 +16,7 @@ type provider interface {
 }
 
 func Register(r *plugin.Registry) error {
-	providers := []provider{ssh.Provider{}, ftp.Provider{}, sftp.Provider{}, aliyun.Provider{}, tencent.Provider{}, s3.Provider{}, minio.Provider{}}
+	providers := []provider{ssh.Provider{}, ftp.Provider{}, aliyun.Provider{}, tencent.Provider{}, s3.Provider{}, minio.Provider{}}
 	for _, p := range providers {
 		d, err := p.Definition()
 		if err != nil {

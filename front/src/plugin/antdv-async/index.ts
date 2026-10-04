@@ -23,6 +23,15 @@ export default {
     app.use(Card);
 
     app.component(
+      "ASegmented",
+      defineAsyncComponent(() => import("ant-design-vue/es/segmented/src/segmented"))
+    );
+
+    app.component(
+      "ASpin",
+      defineAsyncComponent(() => import("ant-design-vue/es/spin/spin.js"))
+    );
+    app.component(
       "AAutoComplete",
       defineAsyncComponent(() => import("ant-design-vue/es/auto-complete/index"))
     );

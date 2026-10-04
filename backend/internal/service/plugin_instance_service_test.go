@@ -13,7 +13,15 @@ import (
 	"handfree-work/octo-backup/internal/svc"
 )
 
-func TestMergePluginConfigPreservesBlankSecretsAndUpdatesOtherFields(t *testing.T) {
+type configCaptureExecutor struct {
+	config map[string]any
+}
+
+func (e *configCaptureExecutor) ExecuteAction(context.Context, string, map[string]any) (any, error) {
+	return e.config, nil
+}
+
+func TestMergePluginConfigClearsBlankSecretsAndUpdatesOtherFields(t *testing.T) {
 	existing := map[string]any{"secretId": "old-id", "secretKey": "old-key", "region": "ap-shanghai"}
 	incoming := map[string]any{"secretId": "new-id", "secretKey": "", "region": ""}
 	fields := []plugin.FieldSpec{
@@ -23,10 +31,23 @@ func TestMergePluginConfigPreservesBlankSecretsAndUpdatesOtherFields(t *testing.
 	}
 
 	got := mergePluginConfig(existing, incoming, fields)
-	want := map[string]any{"secretId": "new-id", "secretKey": "old-key", "region": ""}
+	want := map[string]any{"secretId": "new-id", "secretKey": "", "region": ""}
 	for key, value := range want {
 		if got[key] != value {
 			t.Errorf("config[%q] = %#v, want %#v", key, got[key], value)
+		}
+	}
+}
+
+func TestMergePluginConfigClearsBlankValuesForEveryFieldType(t *testing.T) {
+	got := mergePluginConfig(
+		map[string]any{"text": "old", "secret": "old-secret", "number": 22},
+		map[string]any{"text": "", "secret": "", "number": ""},
+		[]plugin.FieldSpec{{Key: "text"}, {Key: "secret", Encrypt: true}, {Key: "number"}},
+	)
+	for key, value := range map[string]any{"text": "", "secret": "", "number": ""} {
+		if got[key] != value {
+			t.Errorf("config[%q] = %#v, want empty string", key, got[key])
 		}
 	}
 }
@@ -65,7 +86,7 @@ func TestPresentPluginConfigRedactsSecretsAndReturnsPlainFields(t *testing.T) {
 	if config["secretId"] != "****" || config["secretKey"] != "ke*-1" {
 		t.Fatalf("secret values should be masked: %#v", config)
 	}
-	if config["secretIdConfigured"] != true || config["secretKeyConfigured"] != true || config["region"] != "ap-shanghai" {
+	if config["region"] != "ap-shanghai" || config["secretIdConfigured"] != nil || config["secretKeyConfigured"] != nil {
 		t.Fatalf("present config = %#v", config)
 	}
 }
@@ -80,26 +101,35 @@ func TestPluginCreateUpdateAndConcurrentMasterKeyInitialization(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := db_.Migrate(database, &models.Plugin{}, &models.SysSetting{}); err != nil {
+	if err := db_.Migrate(database, &models.PluginInstance{}, &models.SysSetting{}); err != nil {
 		t.Fatal(err)
+	}
+	if !database.Migrator().HasTable("plugin_instance") {
+		t.Fatal("plugin instances should use the plugin_instance table")
 	}
 
 	registry := plugin.NewRegistry()
-	definition, err := plugin.NewGenericDefinition([]byte("type: access\nname: access.test\ntitle: Test\nversion: 1\nfields:\n  - {key: secret, title: Secret, type: password, encrypt: true, required: true}\n  - {key: account, title: Account, type: string, required: true}\n  - {key: region, title: Region, type: string}\nactions:\n  - {name: onTest}\n"))
+	definition, err := plugin.NewDefinition([]byte("type: access\nname: access.test\ntitle: Test\nversion: 1\nfields:\n  - {key: secret, title: Secret, type: password, encrypt: true}\n  - {key: account, title: Account, type: string, required: true}\n  - {key: region, title: Region, type: string}\nactions:\n  - {name: onTest}\n"), func(config map[string]any) (plugin.ActionExecutor, error) {
+		return &configCaptureExecutor{config: config}, nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := registry.Register(definition); err != nil {
 		t.Fatal(err)
 	}
-	repositoryDefinition, err := plugin.NewGenericDefinition([]byte("type: repository\nname: repository.test\ntitle: Repository\nversion: 1\nfields:\n  - {key: accessId, title: Access ID, type: number}\n  - {key: path, title: Path, type: string, required: true}\nactions:\n  - {name: onBuild}\n"))
+	var repositoryActionConfig map[string]any
+	repositoryDefinition, err := plugin.NewDefinition([]byte("type: repository\nname: repository.test\ntitle: Repository\nversion: 1\nfields:\n  - {key: accessId, title: Access ID, type: number}\n  - {key: path, title: Path, type: string, required: true}\nactions:\n  - {name: onBuild}\n"), func(config map[string]any) (plugin.ActionExecutor, error) {
+		repositoryActionConfig = config
+		return &configCaptureExecutor{config: config}, nil
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := registry.Register(repositoryDefinition); err != nil {
 		t.Fatal(err)
 	}
-	service := NewPluginService(context.Background(), &svc.ServiceContext{Db: database, Plugins: registry})
+	service := NewPluginInstanceService(context.Background(), &svc.ServiceContext{Db: database, Plugins: registry})
 
 	const workers = 8
 	start := make(chan struct{})
@@ -123,7 +153,7 @@ func TestPluginCreateUpdateAndConcurrentMasterKeyInitialization(t *testing.T) {
 		}
 	}
 
-	created, err := service.Create(&PluginInput{
+	created, err := service.Create(&PluginInstanceInput{
 		Name:       "腾讯云",
 		PluginType: "access",
 		PluginName: "access.test",
@@ -137,21 +167,29 @@ func TestPluginCreateUpdateAndConcurrentMasterKeyInitialization(t *testing.T) {
 		t.Fatalf("created plugin id = %#v, want *int64", created["id"])
 	}
 	id := *idPtr
-	var stored models.Plugin
+	info, err := service.Info(id)
+	if err != nil || info["config"].(map[string]any)["account"] != "account-1" {
+		t.Fatalf("plugin info = %#v, error = %v; want complete config", info, err)
+	}
+	simple, err := service.GetSimpleByIDs([]int64{id, id + 100})
+	if err != nil || len(simple) != 1 || simple[0]["name"] != "腾讯云" || simple[0]["pluginName"] != "access.test" || simple[0]["icon"] != "" || simple[0]["config"] != nil {
+		t.Fatalf("simple plugins = %#v, error = %v", simple, err)
+	}
+	var stored models.PluginInstance
 	if err := database.First(&stored, id).Error; err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(stored.ConfigYAML, "top-secret") {
 		t.Fatalf("stored config contains plaintext secret: %q", stored.ConfigYAML)
 	}
-	if createdConfig := created["config"].(map[string]any); createdConfig["secret"] != "to******et" || createdConfig["secretConfigured"] != true || createdConfig["account"] != "account-1" {
+	if createdConfig := created["config"].(map[string]any); createdConfig["secret"] != "to******et" || createdConfig["secretConfigured"] != nil || createdConfig["account"] != "account-1" {
 		t.Fatalf("created config should be masked while returning plain fields: %#v", createdConfig)
 	}
-	if _, err := service.Update(id, &PluginInput{Config: map[string]any{"account": ""}}); err == nil {
+	if _, err := service.Update(id, &PluginInstanceInput{Config: map[string]any{"account": ""}}); err == nil {
 		t.Fatal("update should reject clearing a required field")
 	}
 
-	if _, err := service.Update(id, &PluginInput{Name: "腾讯云修改", Config: map[string]any{"secret": "", "region": ""}}); err != nil {
+	if _, err := service.Update(id, &PluginInstanceInput{Name: "腾讯云修改", Config: map[string]any{"secret": "", "region": ""}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := database.First(&stored, id).Error; err != nil {
@@ -165,23 +203,38 @@ func TestPluginCreateUpdateAndConcurrentMasterKeyInitialization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if decoded["secret"] != "top-secret" || decoded["region"] != "" {
+	if decoded["secret"] != "" || decoded["region"] != "" {
 		t.Fatalf("updated config = %#v", decoded)
 	}
 	if _, err := service.Action(id, "onTest", nil); err != nil {
 		t.Fatalf("action should load decrypted config: %v", err)
 	}
 
-	page, err := service.Page(&PluginPageQuery{Offset: -10, Limit: 10, PluginType: "access", Name: "修改"})
+	page, err := service.Page(&PluginInstancePageQuery{Offset: -10, Limit: 10, PluginType: "access", Name: "修改"})
 	if err != nil || page.Offset != 0 || page.Total != 1 || len(page.Records) != 1 {
 		t.Fatalf("filtered page = %#v, error = %v", page, err)
 	}
+	if _, ok := page.Records[0]["config"]; ok {
+		t.Fatalf("plugin page record should not include config: %#v", page.Records[0])
+	}
+	page, err = service.Page(&PluginInstancePageQuery{PluginType: "access", PluginName: "access.test"})
+	if err != nil || page.Total != 1 || len(page.Records) != 1 || page.Records[0]["pluginName"] != "access.test" {
+		t.Fatalf("pluginName-filtered page = %#v, error = %v", page, err)
+	}
 
-	repository, err := service.Create(&PluginInput{Name: "repo", PluginName: "repository.test", Config: map[string]any{"accessId": id, "path": "backup"}})
+	repository, err := service.Create(&PluginInstanceInput{Name: "repo", PluginName: "repository.test", Config: map[string]any{"accessId": id, "path": "backup"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	repositoryID := *repository["id"].(*int64)
+	result, err := service.Action(repositoryID, "onBuild", nil)
+	if err != nil {
+		t.Fatalf("repository action: %v", err)
+	}
+	access, ok := result.(map[string]any)["access"].(map[string]any)
+	if !ok || access["pluginName"] != "access.test" || access["config"].(map[string]any)["secret"] != "" {
+		t.Fatalf("repository action access = %#v; repository config = %#v", access, repositoryActionConfig)
+	}
 	if err := service.Delete(id); err == nil {
 		t.Fatal("delete should reject an access instance referenced by a repository")
 	}

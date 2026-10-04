@@ -1,6 +1,9 @@
 package basic
 
 import (
+	"fmt"
+
+	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/base/web_"
 	logic "handfree-work/octo-backup/internal/service"
 	"handfree-work/octo-backup/internal/svc"
@@ -11,11 +14,10 @@ import (
 func RegisterAuth(app *fiber.App, svcCtx *svc.ServiceContext) {
 	routes := app.Group("/api/auth")
 	web_.RegisterRoutes(routes, svcCtx.Auth,
-		web_.Route{Path: "/register", Permission: web_.Guest, Handler: registerUser(svcCtx)},
-		web_.Route{Path: "/login", Permission: web_.Guest, Handler: loginUser(svcCtx)},
+		web_.Route{Path: "/register", Permission: web_.Guest, Handler: web_.HandleJSON(registerUser(svcCtx))},
+		web_.Route{Path: "/login", Permission: web_.Guest, Handler: web_.HandleJSON(loginUser(svcCtx))},
 	)
 }
-func writeError(c fiber.Ctx, message string) error { return web_.Error(c, 1, message) }
 
 // registerUser godoc
 // @Summary 注册用户
@@ -28,17 +30,9 @@ func writeError(c fiber.Ctx, message string) error { return web_.Error(c, 1, mes
 // @Failure 400 {object} ErrorResponse
 // @Failure 409 {object} ErrorResponse
 // @Router /api/auth/register [post]
-func registerUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		var input logic.CreateUserInput
-		if err := c.Bind().Body(&input); err != nil {
-			return writeError(c, "请求体格式错误")
-		}
-		user, err := logic.NewUserService(c.Context(), svcCtx).Register(&input)
-		if err != nil {
-			return web_.BusinessError(c, err)
-		}
-		return web_.Success(c, user)
+func registerUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.CreateUserInput) (any, error) {
+	return func(c fiber.Ctx, input *logic.CreateUserInput) (any, error) {
+		return logic.NewUserService(c.Context(), svcCtx).Register(input)
 	}
 }
 
@@ -53,24 +47,21 @@ func registerUser(svcCtx *svc.ServiceContext) fiber.Handler {
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
 // @Router /api/auth/login [post]
-func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
-	return func(c fiber.Ctx) error {
-		var input logic.LoginInput
-		if err := c.Bind().Body(&input); err != nil {
-			return writeError(c, "请求体格式错误")
-		}
-		user, err := logic.NewUserService(c.Context(), svcCtx).Login(&input)
+
+func loginUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.LoginInput) (any, error) {
+	return func(c fiber.Ctx, input *logic.LoginInput) (any, error) {
+		user, err := logic.NewUserService(c.Context(), svcCtx).Login(input)
 		if err != nil {
-			return web_.BusinessError(c, err)
+			return nil, err
 		}
 		if user.Id == nil {
-			return writeError(c, "用户数据错误")
+			return nil, error_.NewTextError("用户数据错误")
 		}
 		token, expiresAt, err := svcCtx.Auth.Issue(*user.Id, user.Username, user.Role)
 		if err != nil {
-			return writeError(c, "签发登录凭证失败")
+			return nil, error_.NewTextError(fmt.Sprintf("签发登录凭证失败: %v", err))
 		}
-		return web_.Success(c, fiber.Map{
+		return fiber.Map{
 			"token":     token,
 			"expiresAt": expiresAt.Unix(),
 			"user": fiber.Map{
@@ -78,6 +69,6 @@ func loginUser(svcCtx *svc.ServiceContext) fiber.Handler {
 				"username": user.Username,
 				"role":     user.Role,
 			},
-		})
+		}, nil
 	}
 }

@@ -35,6 +35,12 @@
 - 认证配置、JWT 校验、权限常量和中间件统一放在 `internal/base/web_`。
 - 业务 POST 路由统一使用 `internal/base/web_` 的 `Route` 结构和 `RegisterRoutes` 注册；注册时传入认证配置，`Route.Permission` 为空时不添加权限中间件，非空时由 `web_.Require` 校验。新增路由字段应扩展通用 `Route` 结构。
 - JWT 默认有效期为 7 天；生产环境通过 `JWT_SECRET` 提供密钥，不在代码中硬编码生产密钥。
+
+## 错误处理
+
+- 业务层、service、插件和基础设施在错误发生的位置立即使用 `internal/base/error_` 的 `NewTextError`、`NewCodeTextError` 或 `NewFormatError` 创建并记录 `CodedError`，错误消息必须包含足够的模块、操作和底层原因上下文。
+- handler 只负责将已有的 `CodedError` 转换为统一响应；不得在 handler 才首次包装业务错误，也不得重复记录已经编码的错误。普通 error 仅作为未覆盖路径的兜底。
+- 插件 action 错误必须包含插件名和 action 名，底层连接、数据库和外部命令错误必须保留原始错误信息。
 - 前端登录与注册直接调用 `/api/auth/login`、`/api/auth/register`，并按后端 `{ data: ... }` 响应保存 JWT 和用户角色；开发代理必须保留 `/api` 前缀。
 
 ## API 文档
@@ -45,6 +51,8 @@
 - 业务接口统一使用 `POST` 和 `application/json`；响应固定为 `{code: 0, message: "成功", data: {}}`，`code=0` 表示成功，`code>0` 表示业务失败。无论业务成功或失败，HTTP 状态码统一返回 `200`；前端统一解析 `code` 和 `message`。
 - 所有业务数据必须放在 `data` 字段内；分页数据统一使用 `{offset, limit, records, total}` 结构，service 层分页查询使用 `FindPage` 方法。
 - 前端业务 API 文件就近放置在对应功能模块目录（例如用户模块使用 `views/sys/authority/user/api.ts`），不再集中放入全局 API 模块目录。
+- 插件定义 metadata 统一由 Pinia `pluginDefineStore` 缓存并提供 `clear` 和 `reload`；插件实例记录通过 `plugin-instance` API 查询，按 ID 回显使用批量简要接口，不把实例列表放入定义 store。
+- 插件 metadata 字段可使用 `mergeScript` 与 fast-crud `compute` 按 `form.config` 动态生成组件参数；字段联动事件应同步依赖值，并在类型切换时清理失效引用。
 - 登录、注册等认证 API 统一放置在 `views/framework/auth/api.ts`；用户管理模块 API 仅包含用户数据的增删改查。
 - 前端登录、注册及用户密码变更请求在发送前使用 SHA-256 对密码做一次 hash；密码为空时不发送密码字段，表示不修改。
 - 用户资源使用单数路径 `/api/user`；业务动作路径固定为 `/create`、`/update`、`/delete?id=`、`/info?id=`、`/list`、`/page`、`/batchDelete`，统一使用 POST。
@@ -61,3 +69,9 @@
 - 前端代码修改后使用 `front` 目录中的 Prettier 执行格式化，并使用 `prettier --check` 检查相关文件。
 - 开发完成后不自动启动前端、后端或组合服务；由用户根据 VS Code 调试配置或项目命令自行启动和验证。
 - 交付时说明已执行的自动化检查、构建结果以及未解决的既有问题。
+
+## 前端代码风格
+
+- 变量和函数使用有意义的完整命名，禁止无意义的简称和单字母变量。
+- 禁止使用三元表达式；`if` 必须使用大括号，禁止将 `if` 写在单行。
+- Vue 组件样式使用 `<style lang="less">`，不使用 `scoped`；根元素必须定义组件根 class，样式使用根 class 包裹子 class。

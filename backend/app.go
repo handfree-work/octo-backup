@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/debug"
 
 	adminui "handfree-work/octo-backup/internal/admin"
 	"handfree-work/octo-backup/internal/base/db_"
@@ -82,7 +83,7 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
-	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.Plugin{}); err != nil {
+	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
 		return
 	}
@@ -93,8 +94,13 @@ func main() {
 		return
 	}
 
-	app := fiber.New()
-	app.Use(recover.New())
+	app := fiber.New(fiber.Config{ErrorHandler: web_.ErrorHandler})
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace: true,
+		StackTraceHandler: func(_ fiber.Ctx, value any) {
+			log_.Logger.Error("请求处理发生 panic", zap.Any("panic", value), zap.ByteString("stack", debug.Stack()))
+		},
+	}))
 	app.Use(log_.HTTPMiddleware())
 	pluginRegistry := plugin.NewRegistry()
 	if err := plugins.RegisterAll(pluginRegistry); err != nil {

@@ -13,6 +13,7 @@ type PluginType string
 const (
 	TypeAccess       PluginType = "access"
 	TypeRepository   PluginType = "repository"
+	TypeSource       PluginType = "source"
 	TypeNotification PluginType = "notification"
 )
 
@@ -24,6 +25,7 @@ type FieldSpec struct {
 	Encrypt     bool           `yaml:"encrypt" json:"encrypt"`
 	Default     any            `yaml:"default,omitempty" json:"default,omitempty"`
 	Placeholder string         `yaml:"placeholder,omitempty" json:"placeholder,omitempty"`
+	MergeScript string         `yaml:"mergeScript,omitempty" json:"mergeScript,omitempty"`
 	Component   map[string]any `yaml:"component,omitempty" json:"component,omitempty"`
 	Options     []FieldOption  `yaml:"options,omitempty" json:"options,omitempty"`
 }
@@ -43,6 +45,7 @@ type Metadata struct {
 	Title       string       `yaml:"title" json:"title"`
 	Description string       `yaml:"description" json:"description"`
 	Version     string       `yaml:"version" json:"version"`
+	AccessType  string       `yaml:"accessType,omitempty" json:"accessType,omitempty"`
 	Icon        string       `yaml:"icon,omitempty" json:"icon,omitempty"`
 	Group       string       `yaml:"group,omitempty" json:"group,omitempty"`
 	Fields      []FieldSpec  `yaml:"fields,omitempty" json:"fields,omitempty"`
@@ -51,43 +54,20 @@ type Metadata struct {
 type ActionExecutor interface {
 	ExecuteAction(context.Context, string, map[string]any) (any, error)
 }
-type Factory func(map[string]any) (ActionExecutor, error)
+type NewPluginInstance func(map[string]any) (ActionExecutor, error)
 type Definition struct {
-	Metadata Metadata
-	Factory  Factory
-}
-
-type genericExecutor struct{}
-
-func (g *genericExecutor) ExecuteAction(_ context.Context, action string, _ map[string]any) (any, error) {
-	switch action {
-	case "onTest":
-		return map[string]any{"ok": true}, nil
-	case "onBuild":
-		return map[string]any{"ok": true}, nil
-	case "onListBuckets":
-		return []any{}, nil
-	case "onSend":
-		return map[string]any{"sent": true}, nil
-	default:
-		return nil, fmt.Errorf("插件未实现 action: %s", action)
-	}
-}
-
-func NewGenericDefinition(data []byte) (*Definition, error) {
-	return NewDefinition(data, func(_ map[string]any) (ActionExecutor, error) {
-		return &genericExecutor{}, nil
-	})
+	Metadata          Metadata
+	NewPluginInstance NewPluginInstance
 }
 
 var ErrActionNotFound = fmt.Errorf("插件 action 不存在")
 
-func NewDefinition(data []byte, factory Factory) (*Definition, error) {
+func NewDefinition(data []byte, newPluginInstance NewPluginInstance) (*Definition, error) {
 	var metadata Metadata
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
 		return nil, fmt.Errorf("解析插件元数据: %w", err)
 	}
-	if metadata.Type == "" || metadata.Name == "" || metadata.Title == "" || metadata.Version == "" || factory == nil {
+	if metadata.Type == "" || metadata.Name == "" || metadata.Title == "" || metadata.Version == "" || newPluginInstance == nil {
 		return nil, fmt.Errorf("插件元数据缺少必填字段")
 	}
 	seen := map[string]bool{}
@@ -104,7 +84,7 @@ func NewDefinition(data []byte, factory Factory) (*Definition, error) {
 		}
 		seen[action.Name] = true
 	}
-	return &Definition{Metadata: metadata, Factory: factory}, nil
+	return &Definition{Metadata: metadata, NewPluginInstance: newPluginInstance}, nil
 }
 
 type Registry struct{ definitions map[string]*Definition }
@@ -148,7 +128,7 @@ func (r *Registry) ExecuteWithConfig(ctx context.Context, name, action string, c
 	if !allowed {
 		return nil, ErrActionNotFound
 	}
-	p, err := d.Factory(config)
+	p, err := d.NewPluginInstance(config)
 	if err != nil {
 		return nil, err
 	}

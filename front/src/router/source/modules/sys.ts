@@ -36,6 +36,27 @@ export const sysResources = [
         meta: { icon: "ion:server-outline", permission: "read" },
         path: "/sys/repository",
         component: "/sys/repository/index.vue"
+      },
+      {
+        title: "备份来源",
+        name: "source",
+        meta: { icon: "ion:folder-open-outline", permission: "read" },
+        path: "/sys/source",
+        component: "/sys/source/index.vue"
+      },
+      {
+        title: "备份计划",
+        name: "plan",
+        meta: { icon: "ion:calendar-outline", permission: "read" },
+        path: "/sys/plan",
+        component: "/sys/plan/index.vue"
+      },
+      {
+        title: "备份数据流",
+        name: "plan-flow",
+        meta: { icon: "ion:git-network-outline", permission: "read" },
+        path: "/sys/plan/flow",
+        component: "/sys/plan/flow/index.vue"
       }
     ]
   }

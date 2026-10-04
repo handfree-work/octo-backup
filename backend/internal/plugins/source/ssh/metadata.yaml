@@ -1,0 +1,23 @@
+type: source
+name: source.ssh
+title: SSH 主机目录
+description: 从 SSH 主机选择需要备份的目录
+version: 1.0.0
+fields:
+  - key: accessId
+    title: SSH 授权 ID
+    type: number
+    required: true
+    component:
+      name: access-selector
+      pluginName: access.ssh
+  - key: paths
+    title: 备份路径
+    type: array
+    required: true
+    component:
+      name: plugin-path-selector
+      placeholder: 选择目录或粘贴路径，每行一个
+    mergeScript: 'return { component: { instanceId: ctx.compute(({form}) => form.id), accessId: ctx.compute(({form}) => form.config?.accessId), action: "onListPaths" } }'
+actions:
+  - {name: onListPaths, title: 获取目录结构, permission: write}

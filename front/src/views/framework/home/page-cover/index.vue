@@ -3,7 +3,7 @@
     <div class="dashboard-header">
       <div>
         <h1>备份概览</h1>
-        <p>查看当前 web-restic 实例的资源配置情况。</p>
+        <p>查看当前 octo-backup 实例的资源配置情况。</p>
       </div>
       <a-button type="primary" @click="go('/sys/repository')"><fs-icon icon="lucide:plus" /> 添加存储仓库</a-button>
     </div>
@@ -51,7 +51,7 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { getPluginPage } from "/@/views/sys/plugin/api";
+import { getPluginInstancePage } from "/@/views/sys/plugin/plugin-api";
 
 const router = useRouter();
 const loading = ref(true);
@@ -64,7 +64,7 @@ const stats = computed(() => [
 ]);
 const quickLinks = [
   { title: "存储仓库", description: "管理 Local、SFTP、S3 和 MinIO 仓库", icon: "lucide:database", path: "/sys/repository" },
-  { title: "项目介绍", description: "了解 web-restic 的定位和能力", icon: "lucide:circle-help", path: "/about/index" }
+  { title: "项目介绍", description: "了解 octo-backup 的定位和能力", icon: "lucide:circle-help", path: "/about/index" }
 ];
 function go(path: string) {
   router.push(path);
@@ -72,7 +72,7 @@ function go(path: string) {
 
 onMounted(async () => {
   try {
-    const result = await getPluginPage({ pluginType: "repository", limit: 1 });
+    const result = await getPluginInstancePage({ pluginType: "repository", limit: 1 });
     repositoryCount.value = Number(result?.total || 0);
   } catch {
     repositoryCount.value = 0;

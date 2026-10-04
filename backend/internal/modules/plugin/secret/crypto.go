@@ -83,10 +83,7 @@ func (c *Codec) DecodeYAML(data []byte, fields FieldMetadata) (map[string]any, e
 	if err := yaml.Unmarshal(data, &values); err != nil {
 		return nil, err
 	}
-	for key, spec := range fields {
-		if !spec.Encrypt {
-			continue
-		}
+	for key := range fields {
 		value, ok := values[key].(string)
 		if !ok || value == "" {
 			continue

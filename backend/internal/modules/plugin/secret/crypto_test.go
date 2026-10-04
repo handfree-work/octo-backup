@@ -38,3 +38,18 @@ func TestDecryptRejectsDamagedCiphertext(t *testing.T) {
 		t.Fatal("Decrypt() accepted damaged ciphertext")
 	}
 }
+
+func TestDecodeYAMLDecryptsWhenMetadataEncryptionFlagChanges(t *testing.T) {
+	codec, err := secret.NewCodec(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, _, err := codec.ProtectYAML([]byte("token: plain\n"), secret.FieldMetadata{"token": {Encrypt: true}}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := codec.DecodeYAML(encoded, secret.FieldMetadata{"token": {Encrypt: false}})
+	if err != nil || decoded["token"] != "plain" {
+		t.Fatalf("decoded = %#v, err = %v", decoded, err)
+	}
+}
