@@ -1,5 +1,5 @@
 <template>
-  <div class="plugin-selector">
+  <div class="plugin-selector component-plugin-selector">
     <fs-table-select
       :model-value="value"
       :dict="pluginDict"
@@ -22,6 +22,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "PluginSelector"
+});
+
 import { onMounted, ref, watch } from "vue";
 import { CloseCircleOutlined } from "@ant-design/icons-vue";
 import { dict, type CreateCrudOptionsProps, type CreateCrudOptionsRet } from "@fast-crud/fast-crud";
@@ -86,19 +90,21 @@ function clear() {
 }
 </script>
 
-<style scoped>
-.plugin-selector__placeholder {
-  margin-right: 8px;
-  color: #8c8c8c;
-}
+<style lang="less">
+.plugin-selector {
+  .plugin-selector__placeholder {
+    margin-right: 8px;
+    color: #8c8c8c;
+  }
 
-.plugin-selector__choose {
-  margin-left: 8px;
-}
+  .plugin-selector__choose {
+    margin-left: 8px;
+  }
 
-.plugin-selector__helper {
-  margin-top: 4px;
-  color: #687386;
-  font-size: 13px;
+  .plugin-selector__helper {
+    margin-top: 4px;
+    color: #687386;
+    font-size: 13px;
+  }
 }
 </style>

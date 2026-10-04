@@ -1,5 +1,5 @@
 <template>
-  <div class="plugin-file-input">
+  <div class="plugin-file-input component-plugin-file-input">
     <a-button type="primary" @click="openFile">选择文件</a-button>
     <a-textarea :value="value" :placeholder="placeholder" :auto-size="{ minRows: 3, maxRows: 8 }" @update:value="onInput" />
     <input ref="fileInput" class="plugin-file-input__native" type="file" @change="onFileChange" />
@@ -7,6 +7,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "PluginFileInput"
+});
+
 import { ref } from "vue";
 
 const props = withDefaults(defineProps<{ value?: string; placeholder?: string }>(), { placeholder: "选择文件或直接粘贴" });
@@ -28,13 +32,12 @@ function onFileChange(event: Event) {
 }
 </script>
 
-<style scoped>
+<style lang="less">
 .plugin-file-input {
   display: grid;
   gap: 8px;
-}
-
-.plugin-file-input__native {
-  display: none;
+  .plugin-file-input__native {
+    display: none;
+  }
 }
 </style>

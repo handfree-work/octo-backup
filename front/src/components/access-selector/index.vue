@@ -3,6 +3,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "AccessSelector"
+});
+
 defineProps<{ value?: string | number | null; pluginName?: string }>();
 const emit = defineEmits<{ (event: "update:value", value: number | null): void }>();
 </script>

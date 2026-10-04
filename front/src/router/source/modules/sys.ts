@@ -27,8 +27,8 @@ export const sysResources = [
         title: "授权管理",
         name: "access",
         meta: { icon: "ion:key-outline", permission: "read" },
-        path: "/sys/authority/access",
-        component: "/sys/authority/access/index.vue"
+        path: "/sys/access",
+        component: "/sys/access/index.vue"
       },
       {
         title: "存储仓库",

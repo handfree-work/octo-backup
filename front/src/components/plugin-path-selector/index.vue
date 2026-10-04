@@ -1,5 +1,5 @@
 <template>
-  <div class="plugin-path-selector">
+  <div class="plugin-path-selector component-plugin-path-selector">
     <div class="plugin-path-selector__actions">
       <a-button :disabled="!instanceId" @click="openPicker">选择目录</a-button>
       <span v-if="!instanceId" class="plugin-path-selector__hint">保存来源后可浏览 SSH 目录</span>
@@ -15,6 +15,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "PluginPathSelector"
+});
+
 import { ref } from "vue";
 import { executePluginInstanceAction } from "/src/views/sys/plugin/plugin-api";
 import { formatPathInput, normalizePathNodes, parsePathInput, type PluginPathNode } from "./helpers";
@@ -55,18 +59,18 @@ function confirmSelection() {
 }
 </script>
 
-<style scoped>
+<style lang="less">
 .plugin-path-selector {
   display: grid;
   gap: 8px;
-}
-.plugin-path-selector__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.plugin-path-selector__hint {
-  color: #8c8c8c;
-  font-size: 12px;
+  .plugin-path-selector__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .plugin-path-selector__hint {
+    color: #8c8c8c;
+    font-size: 12px;
+  }
 }
 </style>

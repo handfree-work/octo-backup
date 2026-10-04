@@ -30,7 +30,11 @@ module.exports = {
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/ban-types": "off",
     "@typescript-eslint/no-non-null-assertion": "off",
-    "@typescript-eslint/explicit-module-boundary-types": "off"
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-inferrable-types": "off",
+    "@typescript-eslint/no-empty-object-type": "off",
+    "vue/require-default-prop": "off",
+    "vue/unplugin-vue-define-options": "off"
     // "@typescript-eslint/no-unused-vars": [
     //   "error",
     //   {

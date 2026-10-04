@@ -1,3 +1,9 @@
+<script setup lang="ts">
+defineOptions({
+  name: "LayoutPass"
+});
+</script>
+
 <template>
   <router-view> </router-view>
 </template>

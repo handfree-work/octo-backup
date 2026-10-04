@@ -77,6 +77,9 @@ importers:
       '@vue-flow/minimap':
         specifier: ^1.5.4
         version: 1.5.4(@vue-flow/core@1.48.2(vue@3.5.41(typescript@5.4.2)))(vue@3.5.41(typescript@5.4.2))
+      '@vue-js-cron/light':
+        specifier: ^5.2.2
+        version: 5.2.2(vue@3.5.41(typescript@5.4.2))
       '@vue/shared':
         specifier: ^3.5.13
         version: 3.5.41
@@ -113,6 +116,9 @@ importers:
       cos-js-sdk-v5:
         specifier: ^1.7.0
         version: 1.10.1
+      cron-parser:
+        specifier: ^4.9.0
+        version: 4.9.0
       cropperjs:
         specifier: ^1.6.1
         version: 1.6.2
@@ -2349,6 +2355,12 @@ packages:
       '@vue-flow/core': ^1.23.0
       vue: ^3.3.0
 
+  '@vue-js-cron/core@6.5.0':
+    resolution: {integrity: sha512-2jp4ekoyC9LhnZsIdTdxWce3G6FK5CvYhyIXscnVdxnN6S3oi3uXWpGAuqF+RGhROtfBCuF/2QLPkg5YfZIbzg==}
+
+  '@vue-js-cron/light@5.2.2':
+    resolution: {integrity: sha512-gqYY+XhGO4iQAjrVOXBHYOXbbCM+lePA96CvaXW6w2S4GFotXbLhAacKlgY2WcJk1SOk+n/x9raDeDpIkkpYTw==}
+
   '@vue-macros/common@1.16.1':
     resolution: {integrity: sha512-Pn/AWMTjoMYuquepLZP813BIcq8DTZiNCoaceuNlvaYuOTd8DqBZWc5u0uOMQZMInwME1mdSmmBAcTluiV9Jtg==}
     engines: {node: '>=16.14.0'}
@@ -3081,6 +3093,11 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+
+  cron-parser@4.9.0:
+    resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
+    engines: {node: '>=12.0.0'}
+    deprecated: v4 is no longer maintained, upgrade to v5
 
   cropperjs@1.6.2:
     resolution: {integrity: sha512-nhymn9GdnV3CqiEHJVai54TULFAE3VshJTXSqSJKa8yXAKyBKDWdhHarnlIPrshJ0WMFTGuFvG02YjLXfPiuOA==}
@@ -4521,6 +4538,10 @@ packages:
     peerDependencies:
       vue: '>=3.0.1'
 
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
+
   magic-string-ast@0.7.1:
     resolution: {integrity: sha512-ub9iytsEbT7Yw/Pd29mSo/cNQpaEu67zR1VVcXDiYjSFwzeBxNdTd0FMnSslLQXiRj8uGPzwsaoefrMD5XAmdw==}
     engines: {node: '>=16.14.0'}
@@ -4667,6 +4688,10 @@ packages:
 
   muggle-string@0.3.1:
     resolution: {integrity: sha512-ckmWDJjphvd/FvZawgygcUeQCxzvohjFO5RxTjj4eq8kw359gFF3E1brjfI+viLMxss5JrHTDRHZvu2/tuy0Qg==}
+
+  mustache@4.2.0:
+    resolution: {integrity: sha512-71ippSywq5Yb7/tVYyGbkBggbU8H3u5Rz56fH60jGFgr8uHwxs+aSKeqmluIVzM0m0kB7xQjKS6qPfd0b2ZoqQ==}
+    hasBin: true
 
   mz@2.7.0:
     resolution: {integrity: sha512-z81GNO7nnYMEhrGh9LeymoE4+Yr0Wn5McHIZMK5cfQCl+NDX08sCZgUc9/6MHni9IWuFLm1Z3HTCXu2z9fN62Q==}
@@ -8716,6 +8741,18 @@ snapshots:
       d3-zoom: 3.0.0
       vue: 3.5.41(typescript@5.4.2)
 
+  '@vue-js-cron/core@6.5.0':
+    dependencies:
+      mustache: 4.2.0
+
+  '@vue-js-cron/light@5.2.2(vue@3.5.41(typescript@5.4.2))':
+    dependencies:
+      '@floating-ui/vue': 1.1.11(vue@3.5.41(typescript@5.4.2))
+      '@vue-js-cron/core': 6.5.0
+    transitivePeerDependencies:
+      - '@vue/composition-api'
+      - vue
+
   '@vue-macros/common@1.16.1(vue@3.5.41(typescript@5.4.2))':
     dependencies:
       '@vue/compiler-sfc': 3.5.41
@@ -9624,6 +9661,10 @@ snapshots:
   crc-32@1.2.2: {}
 
   create-require@1.1.1: {}
+
+  cron-parser@4.9.0:
+    dependencies:
+      luxon: 3.7.2
 
   cropperjs@1.6.2: {}
 
@@ -11211,6 +11252,8 @@ snapshots:
     dependencies:
       vue: 3.5.41(typescript@5.4.2)
 
+  luxon@3.7.2: {}
+
   magic-string-ast@0.7.1:
     dependencies:
       magic-string: 0.30.21
@@ -11346,6 +11389,8 @@ snapshots:
   ms@2.1.3: {}
 
   muggle-string@0.3.1: {}
+
+  mustache@4.2.0: {}
 
   mz@2.7.0:
     dependencies:

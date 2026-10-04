@@ -3,5 +3,9 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "BackupSource"
+});
+
 import PluginCrud from "/src/views/sys/plugin/index.vue";
 </script>

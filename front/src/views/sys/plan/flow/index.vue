@@ -12,14 +12,18 @@
         <div><b>计划</b><a-button type="link" size="small" @click="openPlanAdd">＋ 添加</a-button></div>
         <div><b>仓库</b><a-button type="link" size="small" @click="goTo('repository')">＋ 添加</a-button></div>
       </div>
-      <VueFlow v-model:nodes="nodes" v-model:edges="edges" fit-view-on-init :node-types="nodeTypes" class="flow-canvas">
+      <VueFlow v-model:nodes="nodes" v-model:edges="edges" :node-types="nodeTypes" class="flow-canvas">
         <Background pattern-color="#dbe4f0" :gap="24" /><Controls position="bottom-left" /><MiniMap position="bottom-right" />
       </VueFlow>
     </div>
   </fs-page>
 </template>
 <script setup lang="ts">
-import { ref } from "vue";
+defineOptions({
+  name: "BackupPlanFlow"
+});
+
+import { nextTick, ref } from "vue";
 import { VueFlow, useVueFlow, type Edge, type Node } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import { Controls } from "@vue-flow/controls";
@@ -34,48 +38,31 @@ const sources = ref<PluginInstanceSimple[]>([]);
 const repositories = ref<PluginInstanceSimple[]>([]);
 const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
-const { fitView } = useVueFlow();
+const { setCenter } = useVueFlow();
 const nodeTypes = { flow: PlanFlowNode };
 
 function makeGraph() {
   const graphNodes: Node[] = [];
   const graphEdges: Edge[] = [];
   const centerPositionY = 330;
-  const rowSpacing = 144;
+  const rowSpacing = 100;
   const getRowPositionY = (rowIndex: number, rowCount: number) => centerPositionY - ((rowCount - 1) * rowSpacing) / 2 + rowIndex * rowSpacing;
-  const sourceY = new Map<number, number>();
-  const repositoryY = new Map<number, number>();
-  plans.value.forEach((plan, planIndex) => {
-    const positionY = getRowPositionY(planIndex, plans.value.length);
-    if (!sourceY.has(plan.sourceId)) {
-      sourceY.set(plan.sourceId, positionY);
-    }
-    if (!repositoryY.has(plan.repositoryId)) {
-      repositoryY.set(plan.repositoryId, positionY);
-    }
-  });
-  const unusedSourceY = sources.value.filter((source) => !sourceY.has(Number(source.id)));
-  const unusedRepositoryY = repositories.value.filter((repository) => !repositoryY.has(Number(repository.id)));
-  unusedSourceY.forEach((source, sourceIndex) => {
-    sourceY.set(Number(source.id), getRowPositionY(sourceIndex, unusedSourceY.length));
-  });
-  unusedRepositoryY.forEach((repository, repositoryIndex) => {
-    repositoryY.set(Number(repository.id), getRowPositionY(repositoryIndex, unusedRepositoryY.length));
-  });
   sources.value.forEach((source) => {
+    const sourceIndex = sources.value.indexOf(source);
     graphNodes.push({
       id: `source-${source.id}`,
       type: "flow",
-      position: { x: 48, y: sourceY.get(Number(source.id)) ?? centerPositionY },
+      position: { x: 48, y: getRowPositionY(sourceIndex, sources.value.length) },
       data: { title: source.name, meta: source.pluginName, kind: "source" },
       class: "flow-source"
     });
   });
   repositories.value.forEach((repository) => {
+    const repositoryIndex = repositories.value.indexOf(repository);
     graphNodes.push({
       id: `repository-${repository.id}`,
       type: "flow",
-      position: { x: 790, y: repositoryY.get(Number(repository.id)) ?? centerPositionY },
+      position: { x: 790, y: getRowPositionY(repositoryIndex, repositories.value.length) },
       data: { title: repository.name, meta: repository.pluginName, kind: "repository" },
       class: "flow-repository"
     });
@@ -85,11 +72,9 @@ function makeGraph() {
     const sourceNodeId = `source-${plan.sourceId}`;
     const planNodeId = `plan-${plan.id}`;
     const repositoryNodeId = `repository-${plan.repositoryId}`;
-    let planStatus = "已停用";
     let planClass = "flow-plan";
     let edgeClass = "edge-paused";
     if (plan.enabled) {
-      planStatus = "运行中";
       planClass = "flow-plan active";
       edgeClass = "edge-active";
     }
@@ -97,7 +82,12 @@ function makeGraph() {
       id: planNodeId,
       type: "flow",
       position: { x: 410, y: planPositionY },
-      data: { title: plan.name, meta: `${plan.schedule} · ${plan.repoSubPath || "仓库根目录"}`, status: `${planStatus} · ${plan.lastStatus || "等待执行"}`, kind: "plan" },
+      data: {
+        title: plan.name,
+        meta: `${plan.schedule} · ${plan.repoSubPath || "仓库根目录"}`,
+        status: plan.enabled ? "已启用" : "已禁用",
+        kind: "plan"
+      },
       class: planClass
     });
     graphEdges.push(
@@ -107,7 +97,19 @@ function makeGraph() {
   });
   nodes.value = graphNodes.filter((node, nodeIndex, allNodes) => allNodes.findIndex((candidateNode) => candidateNode.id === node.id) === nodeIndex);
   edges.value = graphEdges;
-  requestAnimationFrame(() => fitView({ padding: 0.3, minZoom: 0.65, maxZoom: 1.15 }));
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const nodeWidth = 188;
+      const nodeHeight = 50;
+      const minimumX = Math.min(...nodes.value.map((node) => node.position.x));
+      const maximumX = Math.max(...nodes.value.map((node) => node.position.x + nodeWidth));
+      const minimumY = Math.min(...nodes.value.map((node) => node.position.y));
+      const maximumY = Math.max(...nodes.value.map((node) => node.position.y + nodeHeight));
+      const graphCenterX = (minimumX + maximumX) / 2;
+      const graphCenterY = (minimumY + maximumY) / 2;
+      setCenter(graphCenterX, graphCenterY, { zoom: 1.1 });
+    });
+  });
 }
 function goTo(name: string) {
   window.location.hash = `#/sys/${name}`;
@@ -137,37 +139,48 @@ loadFlow();
     background: #fff;
     display: flex;
     flex-direction: column;
+    position: relative;
+    overflow: hidden;
     .flow-canvas {
       min-height: 0;
       flex: 1;
       background: #fff;
+      position: relative;
+      z-index: 1;
     }
+  }
+  .canvas-shell::before {
+    content: "";
+    position: absolute;
+    inset: 52px 0 0;
+    pointer-events: none;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.025) 0 33.33%, rgba(139, 92, 246, 0.025) 33.33% 66.66%, rgba(16, 185, 129, 0.025) 66.66% 100%);
+    z-index: 0;
   }
   .zone-bar {
     z-index: 4;
     padding: 10px;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    display: flex;
+    justify-content: space-evenly;
     pointer-events: none;
     color: #364152;
     align-items: center;
     background: rgba(255, 255, 255, 0.94);
     border-bottom: 1px solid rgba(220, 229, 240, 0.78);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
   }
   .zone-bar > div {
     display: flex;
     align-items: center;
     gap: 8px;
     font-size: 15px;
-  }
-  .zone-bar > div:nth-child(2) {
-    justify-content: center;
-  }
-  .zone-bar > div:nth-child(3) {
-    justify-content: flex-end;
+    min-height: 28px;
+    padding: 0 14px;
+    border-radius: 8px;
   }
   .zone-bar b {
     font-weight: 650;
+    letter-spacing: 0.02em;
   }
   .zone-bar :deep(.ant-btn) {
     pointer-events: auto;
@@ -175,7 +188,8 @@ loadFlow();
     color: #64748b;
   }
   :deep(.vue-flow__edge-path) {
-    stroke-width: 2.5;
+    stroke-width: 2;
+    stroke-linecap: round;
   }
   :deep(.edge-active .vue-flow__edge-path) {
     stroke: #8b5cf6;
@@ -183,12 +197,14 @@ loadFlow();
     animation: dash 1s linear infinite;
   }
   :deep(.edge-paused .vue-flow__edge-path) {
-    stroke: #a8b5c5;
+    stroke: #b7c0cd;
     stroke-dasharray: 4 7;
   }
   :deep(.vue-flow__controls) {
     border: 1px solid #dce5f0;
     box-shadow: 0 5px 15px rgba(34, 55, 84, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
   }
   @keyframes dash {
     to {

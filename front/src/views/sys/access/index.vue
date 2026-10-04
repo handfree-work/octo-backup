@@ -3,5 +3,9 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "AccessManager"
+});
+
 import PluginCrud from "/@/views/sys/plugin/index.vue";
 </script>

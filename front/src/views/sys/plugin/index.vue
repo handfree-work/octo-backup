@@ -1,5 +1,5 @@
 <template>
-  <fs-page>
+  <fs-page class="component-plugin">
     <template #header>
       <div class="title">
         {{ title }}
@@ -13,6 +13,10 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({
+  name: "BackupPlugin"
+});
+
 import { nextTick, onMounted, ref } from "vue";
 import { useFsAsync, useFsRef } from "@fast-crud/fast-crud";
 import createCrudOptions from "./crud";
@@ -49,15 +53,4 @@ onMounted(async () => {
 });
 </script>
 
-<style scoped>
-.plugin-page-header {
-  display: flex;
-  align-items: center;
-}
-
-.subtitle {
-  margin-top: 4px;
-  color: #687386;
-  font-size: 13px;
-}
-</style>
+<style lang="less"></style>

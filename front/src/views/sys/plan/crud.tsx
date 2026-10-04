@@ -31,18 +31,34 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
         sourceId: { title: "备份来源", type: "dict-select", dict: instanceDict("source"), form: { rules: [{ required: true, message: "请选择备份来源" }] } },
         repositoryId: { title: "存储仓库", type: "dict-select", dict: instanceDict("repository"), form: { rules: [{ required: true, message: "请选择存储仓库" }] } },
         repoSubPath: { title: "仓库目录", type: "text", form: { component: { placeholder: "可选，留空使用仓库根目录" } } },
-        schedule: { title: "Cron 调度", type: "text", form: { rules: [{ required: true, message: "请输入 Cron 表达式" }] } },
+        schedule: {
+          title: "Cron 调度",
+          type: "text",
+          form: {
+            component: { name: "cron-editor", allowEveryMin: true },
+            rules: [
+              { required: true, message: "请选择 Cron 调度" },
+              { pattern: /^\S+(\s+\S+){4}$/, message: "请输入 5 段式 Cron 表达式" }
+            ]
+          }
+        },
         enabled: {
           title: "启用",
+          type: "switch"
+        },
+        lastStatus: {
+          title: "最近状态",
           type: "dict-select",
           dict: dict({
             data: [
-              { value: true, label: "启用" },
-              { value: false, label: "停用" }
+              { value: "pending", label: "待执行" },
+              { value: "running", label: "执行中" },
+              { value: "success", label: "成功" },
+              { value: "failed", label: "失败" }
             ]
-          })
+          }),
+          form: { show: false }
         },
-        lastStatus: { title: "最近状态", type: "text", form: { show: false } },
         createdAt: { title: "创建时间", type: "datetime", form: { show: false } }
       } as any,
       rowHandle: { fixed: "right" }

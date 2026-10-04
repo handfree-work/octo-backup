@@ -1,3 +1,13 @@
+<script setup lang="ts">
+import { useRouter } from "vue-router";
+
+defineOptions({ name: "SiteException404" });
+
+const router = useRouter();
+function toHome() {
+  router.push({ path: "/" });
+}
+</script>
 <template>
   <a-result status="404" title="404" sub-title="Sorry, the page you visited does not exist.">
     <template #extra>
@@ -5,15 +15,3 @@
     </template>
   </a-result>
 </template>
-
-<script lang="ts">
-export default {
-  // eslint-disable-next-line vue/multi-word-component-names
-  name: "Exception404",
-  methods: {
-    toHome() {
-      this.$router.push({ path: "/" });
-    }
-  }
-};
-</script>

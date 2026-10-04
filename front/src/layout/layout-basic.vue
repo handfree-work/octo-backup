@@ -10,21 +10,13 @@ import { openWindow } from "/@/vben/utils";
 
 import { $t } from "/@/vben/locales";
 import { useUserStore } from "/@/store/modules/user";
-
+defineOptions({
+  name: "LayoutBasic"
+});
 const userStore = useUserStore();
 const accessStore = useAccessStore();
-
-const menus = computed(() => [
-  // {
-  //   handler: () => {
-  //     openWindow(VBEN_DOC_URL, {
-  //       target: "_blank"
-  //     });
-  //   },
-  //   icon: BookOpenText,
-  //   text: $t("ui.widgets.document")
-  // }
-]);
+//@ts-ignore
+const menus = computed(() => []);
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;

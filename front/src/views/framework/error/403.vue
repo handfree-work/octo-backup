@@ -1,3 +1,14 @@
+<script setup lang="ts">
+import { useRouter } from "vue-router";
+
+defineOptions({ name: "SiteException403" });
+
+const router = useRouter();
+function toHome() {
+  router.push({ path: "/" });
+}
+</script>
+
 <template>
   <a-result status="403" title="403" sub-title="Sorry,  拒绝访问 .">
     <template #extra>
@@ -5,15 +16,3 @@
     </template>
   </a-result>
 </template>
-
-<script lang="ts">
-export default {
-  // eslint-disable-next-line vue/multi-word-component-names
-  name: "Exception403",
-  methods: {
-    toHome() {
-      this.$router.push({ path: "/" });
-    }
-  }
-};
-</script>
