@@ -25,6 +25,11 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
         editRequest: ({ form, row }: EditReq<BackupPlan>) => updateBackupPlan(row.id, form),
         delRequest: ({ row }: DelReq<BackupPlan>) => deleteBackupPlan(row.id)
       },
+      form: {
+        wrapper: {
+          width: "900px"
+        }
+      },
       columns: {
         id: { title: "ID", type: "text", form: { show: false } },
         name: { title: "名称", type: "text", search: { show: true }, form: { rules: [{ required: true, message: "请输入名称" }] } },
@@ -35,7 +40,7 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
           title: "Cron 调度",
           type: "text",
           form: {
-            component: { name: "cron-editor", allowEveryMin: true },
+            component: { name: "cron-editor", vModel: "modelValue", allowEveryMin: true },
             rules: [
               { required: true, message: "请选择 Cron 调度" },
               { pattern: /^\S+(\s+\S+){4}$/, message: "请输入 5 段式 Cron 表达式" }

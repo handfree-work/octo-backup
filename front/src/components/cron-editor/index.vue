@@ -3,11 +3,11 @@
     <div class="flex-o">
       <cron-light :disabled="disabled || readonly" :period="period" class="flex-o cron-ant" locale="zh-CN" format="crontab" :model-value="modelValue" @update:model-value="onUpdate" @error="onError" />
     </div>
-    <div class="mt-5 flex">
+    <div class="mt-2 flex">
       <a-input :disabled="true" :readonly="readonly" :value="modelValue" @change="onChange"></a-input>
-      <fs-icon icon="ion:close-circle" class="pointer fs-16 ml-5 color-gray" :title="t('certd.cron.clearTip')" @click="onClear"></fs-icon>
+      <fs-icon icon="ion:close-circle" class="pointer fs-16 ml-5 color-gray" title="清除" @click="onClear"></fs-icon>
     </div>
-    <div class="helper">{{ t("certd.cron.nextTrigger") }}：{{ nextTime }}</div>
+    <div class="helper">下次触发时间：{{ nextTime }}</div>
     <div class="fs-helper">{{ errorMessage }}</div>
   </div>
 </template>
@@ -16,7 +16,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { CronLight } from "@vue-js-cron/light";
-import { getCronNextTimes } from "/@/components/cron-editor/utils";
+import { getCronNextTimes } from "./utils";
 
 const { t } = useI18n();
 defineOptions({
@@ -26,7 +26,6 @@ const props = defineProps<{
   modelValue?: string;
   disabled?: boolean;
   readonly?: boolean;
-  allowEveryMin?: boolean;
 }>();
 
 const period = ref<string>("");
@@ -49,14 +48,6 @@ const onUpdate = (value: string) => {
     return;
   }
   const arr: string[] = value.split(" ");
-  if (arr[0] === "*") {
-    arr[0] = "0";
-  }
-  if (props.allowEveryMin !== true) {
-    if (arr[1] === "*") {
-      arr[1] = "0";
-    }
-  }
 
   value = arr.join(" ");
 
@@ -85,7 +76,7 @@ const onClear = () => {
 
 const nextTime = computed(() => {
   if (props.modelValue == null) {
-    return t("certd.cron.tip");
+    return "请输入表达式";
   }
 
   try {
@@ -93,7 +84,7 @@ const nextTime = computed(() => {
     return nextTimes.join("，");
   } catch (e) {
     console.log(e);
-    return t("certd.cron.tip");
+    return "表达式错误";
   }
 });
 </script>

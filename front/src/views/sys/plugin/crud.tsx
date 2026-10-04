@@ -28,10 +28,12 @@ function getComponent(field: PluginField): Record<string, unknown> {
     const script = new Function("ctx", field.mergeScript) as (ctx: { compute: typeof compute }) => { component?: Record<string, unknown> };
     Object.assign(configured, script({ compute }).component || {});
   }
+  const name = (configured.name || "a-input") as string;
+  const vModel = name.startsWith("a-") ? "value" : "modelValue";
   return {
-    vModel: "value",
+    vModel,
     ...configured,
-    name: configured.name || "a-input"
+    name
   };
 }
 
