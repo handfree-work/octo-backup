@@ -1,8 +1,19 @@
 <template>
   <fs-page class="repository-detail-page">
-    <a-page-header class="repository-detail-header" :title="repositoryName || '仓库详情'" @back="goBack">
-      <template #subTitle>Restic 仓库快照</template>
-      <template #extra><a-button :loading="loading" @click="loadSnapshots">刷新</a-button></template>
+    <a-page-header class="repository-detail-header" :title="repositoryTitle" @back="goBack">
+      <template #subTitle>
+        <span>Restic 仓库快照</span>
+      </template>
+      <template #extra>
+        <a-space>
+          <a-tooltip title="校验仓库数据完整性，不会修改仓库内容">
+            <a-button :loading="actionLoading" @click="checkRepository">检查</a-button>
+          </a-tooltip>
+          <a-tooltip title="重新查询仓库快照和统计数据，并更新本地缓存">
+            <a-button :loading="loading" @click="loadSnapshots(true)">刷新</a-button>
+          </a-tooltip>
+        </a-space>
+      </template>
     </a-page-header>
     <a-alert v-if="errorMessage" type="error" show-icon :message="errorMessage" />
     <a-spin :spinning="loading" class="repository-detail-loading">
@@ -13,18 +24,27 @@
               <span class="panel-kicker">REPOSITORY</span>
               <h2>Snapshots</h2>
             </div>
-            <a-tag color="blue">{{ snapshots.length }} 个</a-tag>
+            <span>
+              <a-tag color="blue">{{ snapshots.length }} 个</a-tag>
+              <a-tag color="green">占 {{ formatBytes(repositoryStats?.total_size) }}</a-tag>
+            </span>
           </div>
           <a-empty v-if="!snapshots.length && !loading" description="仓库中暂无快照" />
           <div v-else class="snapshot-list">
-            <button v-for="snapshot in snapshots" :key="snapshot.id" class="snapshot-item" :class="{ active: selectedSnapshot?.id === snapshot.id }" type="button" @click="selectedSnapshot = snapshot">
-              <span class="snapshot-status"><DatabaseOutlined /></span
-              ><span class="snapshot-item-body"
-                ><strong>{{ formatDate(snapshot.time) }}</strong
-                ><span>{{ snapshot.hostname || "未知主机" }}</span
-                ><span class="snapshot-id">{{ snapshot.id }}</span></span
-              ><RightOutlined />
-            </button>
+            <div v-for="group in snapshotGroups" :key="group.tag" class="snapshot-group">
+              <div class="snapshot-group-title">
+                <TagOutlined /> {{ group.tag }} <span>{{ group.items.length }}</span>
+              </div>
+              <button v-for="snapshot in group.items" :key="snapshot.id" class="snapshot-item" :class="{ active: selectedSnapshot?.id === snapshot.id }" type="button" @click="selectSnapshot(snapshot)">
+                <span class="snapshot-status"><DatabaseOutlined /></span
+                ><span class="snapshot-item-body"
+                  ><span class="snapshot-time-row"
+                    ><strong>{{ formatDate(snapshot.time) }}</strong
+                    ><a-tag v-for="tag in snapshot.tags?.length ? snapshot.tags : ['无标签']" :key="tag" color="blue">{{ tag }}</a-tag></span
+                  ><span class="snapshot-id">{{ snapshot.id }}</span></span
+                ><RightOutlined />
+              </button>
+            </div>
           </div>
         </section>
         <section class="snapshot-detail-panel">
@@ -59,11 +79,19 @@
             </div>
             <div class="paths-section">
               <div class="section-title">备份路径</div>
-              <a-list bordered size="small" :data-source="selectedSnapshot.paths || []"
-                ><template #renderItem="{ item }"
-                  ><a-list-item><FolderOutlined /> {{ item }}</a-list-item></template
-                ></a-list
-              >
+              <div v-if="selectedSnapshot.paths?.length" class="backup-path-list">
+                <div v-for="path in selectedSnapshot.paths" :key="path" class="backup-path-item">
+                  <FolderOutlined />
+                  <code>{{ path }}</code>
+                </div>
+              </div>
+              <a-empty v-else :image="null" description="没有备份路径" />
+            </div>
+            <div class="browser-section">
+              <div class="section-title">Snapshot Browser</div>
+              <a-spin :spinning="browserLoading">
+                <a-directory-tree :key="selectedSnapshot.id" :tree-data="browserTree" :load-data="loadBrowserNode" :show-icon="true" block-node />
+              </a-spin>
             </div>
           </template>
           <a-empty v-else description="选择一个快照查看详情" />
@@ -73,10 +101,18 @@
   </fs-page>
 </template>
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, h, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
-import { DatabaseOutlined, FolderOutlined, RightOutlined } from "@ant-design/icons-vue";
-import { getPluginInstanceInfo, getPluginInstanceSnapshots } from "/@/views/sys/plugin/plugin-api";
+import { DatabaseOutlined, FileOutlined, FolderOutlined, RightOutlined, TagOutlined } from "@ant-design/icons-vue";
+import {
+  checkPluginInstanceRepository,
+  getPluginInstanceInfo,
+  getPluginInstanceSnapshotBrowser,
+  getPluginInstanceSnapshots,
+  getPluginInstanceStats,
+  refreshPluginInstanceRepositoryData
+} from "/@/views/sys/plugin/plugin-api";
+import { message } from "ant-design-vue";
 interface Snapshot {
   id: string;
   time?: string;
@@ -86,12 +122,69 @@ interface Snapshot {
   paths?: string[];
   summary?: { total_files?: number; total_bytes_processed?: number };
 }
+interface BrowserEntry {
+  path?: string;
+  type?: string;
+  size?: number;
+  mode?: string;
+}
 const route = useRoute();
 const loading = ref(false);
 const errorMessage = ref("");
 const repositoryName = ref("");
 const snapshots = ref<Snapshot[]>([]);
 const selectedSnapshot = ref<Snapshot>();
+const statsLoading = ref(false);
+const repositoryStats = ref<{ total_size?: number; total_file_count?: number; snapshot_count?: number }>();
+const repositoryTitle = computed(() => (repositoryName.value ? `${repositoryName.value}` : "仓库详情"));
+const browserLoading = ref(false);
+const browserEntries = ref<BrowserEntry[]>([]);
+const browserLoaded = ref(false);
+const actionLoading = ref(false);
+const snapshotGroups = computed(() => {
+  const groups = new Map<string, Snapshot[]>();
+  for (const snapshot of snapshots.value) {
+    const tag = formatTags(snapshot.tags);
+    const items = groups.get(tag) || [];
+    items.push(snapshot);
+    groups.set(tag, items);
+  }
+  return Array.from(groups, ([tag, items]) => ({ tag, items }));
+});
+const browserTree = computed(() => {
+  const root = { key: "/", title: "/", icon: h(FolderOutlined), isLeaf: false };
+  if (!browserLoaded.value) {
+    return [root];
+  }
+  const roots: any[] = [];
+  const lookup = new Map<string, any>();
+  for (const entry of browserEntries.value) {
+    const parts = String(entry.path || "/")
+      .split("/")
+      .filter(Boolean);
+    let parent = roots;
+    let currentPath = "";
+    for (const part of parts) {
+      currentPath += `/${part}`;
+      let node = lookup.get(currentPath);
+      if (!node) {
+        node = { key: currentPath, title: part, icon: h(FolderOutlined), children: [], isLeaf: false };
+        lookup.set(currentPath, node);
+        parent.push(node);
+      }
+      parent = node.children;
+    }
+    const node = lookup.get(currentPath);
+    if (node && entry.type !== "dir") {
+      node.isLeaf = true;
+      node.icon = h(FileOutlined);
+      delete node.children;
+    }
+  }
+  root.children = roots;
+  root.isLeaf = roots.length === 0;
+  return [root];
+});
 function goBack() {
   window.location.hash = "#/sys/repository";
 }
@@ -107,156 +200,270 @@ function formatBytes(value?: number) {
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KiB`;
   return `${(value / 1024 / 1024).toFixed(2)} MiB`;
 }
-async function loadSnapshots() {
+async function selectSnapshot(snapshot: Snapshot) {
+  selectedSnapshot.value = snapshot;
+  browserLoading.value = true;
+  browserEntries.value = [];
+  browserLoaded.value = false;
+  browserLoading.value = false;
+}
+async function loadBrowserNode() {
+  if (browserLoaded.value || !selectedSnapshot.value) {
+    return;
+  }
+  browserLoading.value = true;
+  try {
+    const result = await getPluginInstanceSnapshotBrowser(String(route.params.id), selectedSnapshot.value.id);
+    browserEntries.value = Array.isArray(result) ? result : [];
+    browserLoaded.value = true;
+  } finally {
+    browserLoading.value = false;
+  }
+}
+async function loadSnapshots(refresh = false) {
   loading.value = true;
+  statsLoading.value = true;
   errorMessage.value = "";
   try {
-    const [info, result] = await Promise.all([getPluginInstanceInfo(String(route.params.id)), getPluginInstanceSnapshots(String(route.params.id))]);
+    const infoPromise = getPluginInstanceInfo(String(route.params.id));
+    const detailPromise = refresh
+      ? refreshPluginInstanceRepositoryData(String(route.params.id))
+      : Promise.all([getPluginInstanceSnapshots(String(route.params.id)), getPluginInstanceStats(String(route.params.id))]).then(([result, stats]) => ({ snapshots: result, stats }));
+    const [info, detail] = await Promise.all([infoPromise, detailPromise]);
     repositoryName.value = info.name;
-    snapshots.value = Array.isArray(result) ? result : [];
-    selectedSnapshot.value = snapshots.value[0];
+    snapshots.value = Array.isArray(detail?.snapshots) ? [...detail.snapshots].sort((left, right) => String(right.time || "").localeCompare(String(left.time || ""))) : [];
+    repositoryStats.value = detail?.stats || undefined;
+    browserEntries.value = [];
+    browserLoaded.value = false;
+    if (snapshots.value[0]) {
+      await selectSnapshot(snapshots.value[0]);
+    }
   } catch (error: any) {
     errorMessage.value = error?.message || "加载仓库快照失败";
   } finally {
     loading.value = false;
+    statsLoading.value = false;
   }
 }
 onMounted(loadSnapshots);
+async function checkRepository() {
+  actionLoading.value = true;
+  try {
+    await checkPluginInstanceRepository(String(route.params.id));
+    message.success("仓库检查完成");
+  } catch (error: any) {
+    message.error(error?.message || "仓库检查失败");
+  } finally {
+    actionLoading.value = false;
+  }
+}
 </script>
 <style lang="less">
 .repository-detail-page {
   background: #f5f7fa;
-}
-.repository-detail-header {
-  background: #fff;
-  border-bottom: 1px solid #e5e7eb;
-}
-.repository-detail-loading {
-  display: block;
-  min-height: 520px;
-}
-.repository-detail-content {
-  display: grid;
-  grid-template-columns: minmax(280px, 34%) 1fr;
-  min-height: 560px;
-  background: #fff;
-}
-.snapshot-list-panel {
-  border-right: 1px solid #e5e7eb;
-  padding: 24px 0;
-}
-.snapshot-detail-panel {
-  padding: 32px 40px;
-}
-.panel-heading,
-.detail-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-}
-.detail-heading {
-  padding: 0;
-}
-.panel-kicker {
-  color: #8b95a5;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-}
-h1,
-h2 {
-  margin: 4px 0 0;
-  color: #17212f;
-}
-h1 {
-  font-size: 26px;
-}
-h2 {
-  font-size: 18px;
-}
-.snapshot-list {
-  margin-top: 18px;
-}
-.snapshot-item {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  gap: 12px;
-  padding: 15px 24px;
-  border: 0;
-  border-left: 3px solid transparent;
-  background: transparent;
-  color: #4b5563;
-  text-align: left;
-  cursor: pointer;
-}
-.snapshot-item:hover,
-.snapshot-item.active {
-  background: #eef6ff;
-  border-left-color: #1677ff;
-}
-.snapshot-status {
-  color: #1677ff;
-  font-size: 17px;
-}
-.snapshot-item-body {
-  display: grid;
-  flex: 1;
-  gap: 3px;
-  min-width: 0;
-}
-.snapshot-item-body strong {
-  color: #17212f;
-}
-.snapshot-item-body span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.snapshot-id {
-  color: #9aa4b2;
-  font-family: monospace;
-  font-size: 12px;
-}
-.detail-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-.detail-grid div {
-  display: grid;
-  gap: 6px;
-}
-.detail-grid span {
-  color: #8b95a5;
-  font-size: 13px;
-}
-.detail-grid strong {
-  color: #263343;
-  font-size: 15px;
-  word-break: break-word;
-}
-.paths-section {
-  margin-top: 36px;
-}
-.section-title {
-  margin-bottom: 10px;
-  color: #263343;
-  font-weight: 600;
-}
-@media (max-width: 800px) {
-  .repository-detail-content {
-    grid-template-columns: 1fr;
-  }
-  .snapshot-list-panel {
-    border-right: 0;
+
+  .repository-detail-header {
+    background: #fff;
     border-bottom: 1px solid #e5e7eb;
   }
+  .repository-detail-loading {
+    display: block;
+    min-height: 520px;
+  }
+  .repository-detail-content {
+    display: grid;
+    grid-template-columns: minmax(280px, 34%) 1fr;
+    min-height: 560px;
+    background: #fff;
+  }
+  .snapshot-list-panel {
+    border-right: 1px solid #e5e7eb;
+    padding: 24px 0;
+  }
   .snapshot-detail-panel {
-    padding: 24px;
+    padding: 32px 40px;
+  }
+  .panel-heading,
+  .detail-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+  }
+  .detail-heading {
+    padding: 0;
+  }
+  .panel-kicker {
+    color: #8b95a5;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+  }
+  h1,
+  h2 {
+    margin: 4px 0 0;
+    color: #17212f;
+  }
+  h1 {
+    font-size: 26px;
+  }
+  h2 {
+    font-size: 18px;
+  }
+  .snapshot-list {
+    margin-top: 18px;
+  }
+  .snapshot-group + .snapshot-group {
+    margin-top: 20px;
+  }
+  .snapshot-group-title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 24px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .snapshot-group-title span {
+    color: #a0aaba;
+    font-weight: 400;
+  }
+  .snapshot-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 12px;
+    padding: 15px 24px;
+    border: 0;
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: #4b5563;
+    text-align: left;
+    cursor: pointer;
+  }
+  .snapshot-item:hover,
+  .snapshot-item.active {
+    background: #eef6ff;
+    border-left-color: #1677ff;
+  }
+  .snapshot-status {
+    color: #1677ff;
+    font-size: 17px;
+  }
+  .snapshot-item-body {
+    display: grid;
+    flex: 1;
+    gap: 3px;
+    min-width: 0;
+  }
+  .snapshot-item-body strong {
+    color: #17212f;
+  }
+  .snapshot-time-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .snapshot-time-row :deep(.ant-tag) {
+    margin: 0;
+  }
+  .snapshot-item-body span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .snapshot-id {
+    color: #9aa4b2;
+    font-family: monospace;
+    font-size: 12px;
+  }
+  .snapshot-tag {
+    color: #64748b;
+    font-size: 12px;
   }
   .detail-grid {
-    grid-template-columns: repeat(2, 1fr);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .detail-grid div {
+    display: grid;
+    gap: 6px;
+  }
+  .detail-grid span {
+    color: #8b95a5;
+    font-size: 13px;
+  }
+  .detail-grid strong {
+    color: #263343;
+    font-size: 15px;
+    word-break: break-word;
+  }
+  .paths-section,
+  .browser-section {
+    margin-top: 36px;
+  }
+  .backup-path-list {
+    display: grid;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+  }
+  .backup-path-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: #64748b;
+  }
+  .backup-path-item code {
+    min-width: 0;
+    color: #263343;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    overflow-wrap: anywhere;
+  }
+  .browser-section {
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+
+    .ant-tree .ant-tree-switcher {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  .browser-section :deep(.ant-tree-node-content-wrapper),
+  .browser-section :deep(.ant-tree-iconEle) {
+    display: inline-flex;
+    align-items: center;
+  }
+  .browser-section :deep(.ant-tree-iconEle) {
+    justify-content: center;
+    height: 24px;
+  }
+  .section-title {
+    margin-bottom: 10px;
+    color: #263343;
+    font-weight: 600;
+  }
+
+  @media (max-width: 800px) {
+    .repository-detail-content {
+      grid-template-columns: 1fr;
+    }
+    .snapshot-list-panel {
+      border-right: 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .snapshot-detail-panel {
+      padding: 24px;
+    }
+    .detail-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
   }
 }
 </style>

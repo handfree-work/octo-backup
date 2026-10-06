@@ -42,6 +42,98 @@ func (p *ResticClient) Snapshots(ctx context.Context) (any, error) {
 	return snapshots, nil
 }
 
+// Stats 查询整个 Restic 仓库的实际数据统计。
+func (p *ResticClient) Stats(ctx context.Context) (any, error) {
+	defer p.executor.Close()
+	if err := p.prepareEnvironment(ctx); err != nil {
+		return nil, err
+	}
+	repository := "sftp:" + p.config.RepositoryAccess.Username + "@" + p.config.RepositoryAccess.Host + ":" + p.config.RepositoryPath
+	output, err := p.executor.Execute(ctx, []string{"-r", repository, "stats", "--json", "--mode", "raw-data"}, []string{"RESTIC_PASSWORD=" + p.config.RepositoryPassword})
+	if err != nil {
+		return nil, error_.NewTextError("查询 Restic 仓库统计失败: output=%s error=%v", strings.TrimSpace(string(output)), err)
+	}
+	var stats any
+	if err := yaml.Unmarshal(output, &stats); err != nil {
+		return nil, error_.NewWrapError("解析 Restic 仓库统计失败", err)
+	}
+	return stats, nil
+}
+
+// Check 校验 Restic 仓库完整性。
+func (p *ResticClient) Check(ctx context.Context) error {
+	defer p.executor.Close()
+	if err := p.prepareEnvironment(ctx); err != nil {
+		return err
+	}
+	repository := "sftp:" + p.config.RepositoryAccess.Username + "@" + p.config.RepositoryAccess.Host + ":" + p.config.RepositoryPath
+	output, err := p.executor.Execute(ctx, []string{"-r", repository, "check"}, []string{"RESTIC_PASSWORD=" + p.config.RepositoryPassword})
+	if err != nil {
+		return error_.NewTextError("检查 Restic 仓库失败: output=%s error=%v", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// Prune 清理 Restic 仓库中不再需要的数据。
+func (p *ResticClient) Prune(ctx context.Context) error {
+	defer p.executor.Close()
+	if err := p.prepareEnvironment(ctx); err != nil {
+		return err
+	}
+	repository := "sftp:" + p.config.RepositoryAccess.Username + "@" + p.config.RepositoryAccess.Host + ":" + p.config.RepositoryPath
+	args := []string{"-r", repository, "forget", "--prune"}
+	policy := p.config.KeepPolicy
+	values, _ := policy["value"].(map[string]any)
+	retention := []struct {
+		name string
+		key  string
+	}{{"--keep-last", "keepLast"}, {"--keep-hourly", "keepHourly"}, {"--keep-daily", "keepDaily"}, {"--keep-weekly", "keepWeekly"}, {"--keep-monthly", "keepMonthly"}, {"--keep-yearly", "keepYearly"}}
+	configured := false
+	for _, item := range retention {
+		if value, ok := values[item.key].(float64); ok && value > 0 {
+			args = append(args, item.name, fmt.Sprint(int(value)))
+			configured = true
+		}
+	}
+	if duration, ok := values["duration"].(string); ok && strings.TrimSpace(duration) != "" {
+		unit, _ := values["unit"].(string)
+		args = append(args, "--keep-within", duration+unit)
+		configured = true
+	}
+	if !configured {
+		return error_.NewTextError("未配置仓库保留策略，不能执行清理")
+	}
+	output, err := p.executor.Execute(ctx, args, []string{"RESTIC_PASSWORD=" + p.config.RepositoryPassword})
+	if err != nil {
+		return error_.NewTextError("清理 Restic 仓库失败: output=%s error=%v", strings.TrimSpace(string(output)), err)
+	}
+	return nil
+}
+
+// SnapshotBrowser 查询指定快照中的文件条目。
+func (p *ResticClient) SnapshotBrowser(ctx context.Context, snapshotId string) (any, error) {
+	defer p.executor.Close()
+	if strings.TrimSpace(snapshotId) == "" {
+		return nil, error_.NewTextError("快照 Id 不能为空")
+	}
+	if err := p.prepareEnvironment(ctx); err != nil {
+		return nil, err
+	}
+	repository := "sftp:" + p.config.RepositoryAccess.Username + "@" + p.config.RepositoryAccess.Host + ":" + p.config.RepositoryPath
+	output, err := p.executor.Execute(ctx, []string{"-r", repository, "ls", "--json", snapshotId}, []string{"RESTIC_PASSWORD=" + p.config.RepositoryPassword})
+	if err != nil {
+		return nil, error_.NewTextError("读取 Restic 快照文件失败: output=%s error=%v", strings.TrimSpace(string(output)), err)
+	}
+	entries := make([]map[string]any, 0)
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		var entry map[string]any
+		if yaml.Unmarshal([]byte(line), &entry) == nil {
+			entries = append(entries, entry)
+		}
+	}
+	return entries, nil
+}
+
 // prepareEnvironment 让具体执行器准备本地或远程 Restic 环境。
 func (p *ResticClient) prepareEnvironment(ctx context.Context) error {
 	if p.config.RepositoryAccess == nil || strings.TrimSpace(p.config.RepositoryPath) == "" || p.config.RepositoryPassword == "" {
@@ -113,6 +205,9 @@ func (p *ResticClient) Backup(ctx context.Context, request BackupRequest) (*Back
 	}
 	executor := p.executor
 	args := []string{"backup", "--json"}
+	if p.config.Compression != "" {
+		args = append(args, "--compression", p.config.Compression)
+	}
 	if p.sftpCommand() != "" {
 		args = append([]string{"-o", "sftp.command=" + p.sftpCommand()}, args...)
 	}
@@ -128,10 +223,24 @@ func (p *ResticClient) Backup(ctx context.Context, request BackupRequest) (*Back
 	log_.Logger.Info("执行 Restic 文件备份", zap.Int("sourcePathCount", len(request.SourcePaths)))
 	output, err := executor.Execute(ctx, args, []string{"RESTIC_REPOSITORY=" + p.repositoryURL(), "RESTIC_PASSWORD=" + p.config.RepositoryPassword})
 	if err != nil {
-		return nil, err
+		return &BackupResult{Status: "failed", Output: strings.TrimSpace(string(output))}, error_.NewTextError("执行 Restic 备份失败: output=%s error=%v", strings.TrimSpace(string(output)), err)
 	}
 	log_.Logger.Info("restic 备份完成", zap.Duration("duration", time.Since(started)))
-	return &BackupResult{Status: "success", Output: strings.TrimSpace(string(output))}, nil
+	return &BackupResult{Status: "success", Output: strings.TrimSpace(string(output)), Summary: backupSummary(output)}, nil
+}
+
+func backupSummary(output []byte) map[string]any {
+	var summary map[string]any
+	for _, line := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		var event map[string]any
+		if json.Unmarshal([]byte(line), &event) != nil {
+			continue
+		}
+		if value, ok := event["summary"].(map[string]any); ok {
+			summary = value
+		}
+	}
+	return summary
 }
 
 func (p *ResticClient) repositoryURL() string {

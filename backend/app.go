@@ -13,6 +13,7 @@ import (
 	"handfree-work/octo-backup/internal/config"
 	"handfree-work/octo-backup/internal/handler"
 	"handfree-work/octo-backup/internal/models"
+	"handfree-work/octo-backup/internal/modules/auto"
 	"handfree-work/octo-backup/internal/modules/plugin"
 	"handfree-work/octo-backup/internal/plugins"
 	"handfree-work/octo-backup/internal/svc"
@@ -83,7 +84,7 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
-	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}, &models.BackupLog{}, &models.AuditLog{}); err != nil {
+	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}, &models.BackupLog{}, &models.BackupLogContent{}, &models.AuditLog{}, &models.RepoDataInfo{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
 		return
 	}
@@ -107,7 +108,14 @@ func main() {
 		log_.Logger.Error("注册插件失败", zap.Error(err))
 		return
 	}
-	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig, Plugins: pluginRegistry, Restic: cfg.Restic})
+	serviceContext := &svc.ServiceContext{Db: database, Auth: authConfig, Plugins: pluginRegistry, Restic: cfg.Restic}
+	stopAuto, autoErr := auto.Start(serviceContext)
+	if autoErr != nil {
+		log_.Logger.Error("注册备份计划定时任务失败", zap.Error(autoErr))
+		return
+	}
+	defer stopAuto()
+	handler.Register(app, serviceContext)
 	app.Get("/*", static.New("./static/public"))
 
 	log_.Logger.Info("OctoBackup 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))

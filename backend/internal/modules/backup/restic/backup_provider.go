@@ -16,6 +16,15 @@ type ClientConfig struct {
 	RemoteDirectory    string
 	ResticBinary       []byte
 	ResticBinaryPath   string
+	Compression        string
+	KeepPolicy         map[string]any
+	KeepLast           int
+	KeepHourly         int
+	KeepDaily          int
+	KeepWeekly         int
+	KeepMonthly        int
+	KeepYearly         int
+	Progress           func(progress int, stage string)
 }
 
 // BackupRequest 保存一次备份所需的来源数据参数。
@@ -33,8 +42,9 @@ type RestoreRequest struct {
 
 // BackupResult 表示一次备份执行的最终状态。
 type BackupResult struct {
-	Status string `json:"status"`
-	Output string `json:"output,omitempty"`
+	Status  string         `json:"status"`
+	Output  string         `json:"output,omitempty"`
+	Summary map[string]any `json:"summary,omitempty"`
 }
 
 // ResticEnvironment 指定 Restic 命令的执行位置。
@@ -56,7 +66,7 @@ func NewResticClient(svcCtx *svc.ServiceContext, config ClientConfig) *ResticCli
 	if config.Environment == LocalResticEnvironment {
 		client.executor = &LocalResticExecutor{}
 	} else {
-		client.executor = &RemoteResticExecutor{Access: config.ExecutionAccess}
+		client.executor = &RemoteResticExecutor{Access: config.ExecutionAccess, Progress: config.Progress}
 	}
 	return client
 }

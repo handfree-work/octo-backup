@@ -7,6 +7,7 @@ export function createCrudOptions(): CreateCrudOptionsRet<AuditLog> {
       rowHandle: { show: false },
       columns: {
         id: { title: "ID", type: "text" },
+        operation: { title: "操作", type: "text" },
         username: { title: "用户", type: "text", search: { show: true } },
         method: { title: "方法", type: "text" },
         path: { title: "路径", type: "text", search: { show: true } },

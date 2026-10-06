@@ -23,4 +23,3 @@ func TestNormalizeRepoTag(t *testing.T) {
 		}
 	}
 }
-

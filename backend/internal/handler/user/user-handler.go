@@ -42,6 +42,7 @@ func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
 // @Router /api/users/create [post]
 func createUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.CreateUserInput) (any, error) {
 	return func(c fiber.Ctx, input *logic.CreateUserInput) (any, error) {
+		defer web_.AuditLog(c, "创建用户")
 		return logic.NewUserService(c.Context(), svcCtx).Create(input)
 	}
 }
@@ -102,6 +103,7 @@ func getUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 // @Router /api/users/{id}/update [post]
 func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInput) (any, error) {
 	return func(c fiber.Ctx, input *logic.UpdateUserInput) (any, error) {
+		defer web_.AuditLog(c, "更新用户")
 		id, err := parseUserId(c)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 无效")
@@ -135,6 +137,7 @@ func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInp
 // @Router /api/users/{id}/delete [post]
 func deleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 	return func(c fiber.Ctx) (any, error) {
+		defer web_.AuditLog(c, "删除用户")
 		id, err := parseUserId(c)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 无效")
@@ -152,6 +155,7 @@ type batchDeleteInput struct {
 
 func batchDeleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *batchDeleteInput) (any, error) {
 	return func(c fiber.Ctx, input *batchDeleteInput) (any, error) {
+		defer web_.AuditLog(c, "批量删除用户")
 		if len(input.IDs) == 0 {
 			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 不能为空")
 		}

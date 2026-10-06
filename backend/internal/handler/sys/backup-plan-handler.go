@@ -21,8 +21,18 @@ func RegisterBackupPlan(app *fiber.App, s *svc.ServiceContext) {
 		web_.Route{Path: "/delete", Permission: web_.Admin, Handler: web_.Handle(backupPlanDelete(s))},
 		web_.Route{Path: "/run", Permission: web_.Write, Handler: web_.HandleJSON(backupPlanRun(s))},
 		web_.Route{Path: "/run/info", Permission: web_.Read, Handler: web_.Handle(backupPlanLog(s))},
+		web_.Route{Path: "/run/log", Permission: web_.Read, Handler: web_.Handle(backupPlanLogContent(s))},
 		web_.Route{Path: "/run/page", Permission: web_.Read, Handler: web_.HandleJSON(backupPlanLogPage(s))},
 	)
+}
+func backupPlanLogContent(s *svc.ServiceContext) func(fiber.Ctx) (any, error) {
+	return func(c fiber.Ctx) (any, error) {
+		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
+		if err != nil {
+			return nil, error_.NewCodeTextError(code_.ParamError, "运行记录 Id 无效")
+		}
+		return logic.NewBackupPlanService(c.Context(), s).LogContent(id)
+	}
 }
 func backupPlanLogPage(s *svc.ServiceContext) func(fiber.Ctx, *logic.BackupLogPageQuery) (any, error) {
 	return func(c fiber.Ctx, q *logic.BackupLogPageQuery) (any, error) {
@@ -31,6 +41,7 @@ func backupPlanLogPage(s *svc.ServiceContext) func(fiber.Ctx, *logic.BackupLogPa
 }
 func backupPlanRun(s *svc.ServiceContext) func(fiber.Ctx, *struct{}) (any, error) {
 	return func(c fiber.Ctx, _ *struct{}) (any, error) {
+		defer web_.AuditLog(c, "执行备份计划")
 		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "备份计划 Id 无效")
@@ -63,11 +74,13 @@ func backupPlanInfo(s *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 }
 func backupPlanCreate(s *svc.ServiceContext) func(fiber.Ctx, *logic.BackupPlanInput) (any, error) {
 	return func(c fiber.Ctx, in *logic.BackupPlanInput) (any, error) {
+		defer web_.AuditLog(c, "创建备份计划")
 		return logic.NewBackupPlanService(c.Context(), s).Create(in)
 	}
 }
 func backupPlanUpdate(s *svc.ServiceContext) func(fiber.Ctx, *logic.BackupPlanInput) (any, error) {
 	return func(c fiber.Ctx, in *logic.BackupPlanInput) (any, error) {
+		defer web_.AuditLog(c, "更新备份计划")
 		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "备份计划 Id 无效")
@@ -77,6 +90,7 @@ func backupPlanUpdate(s *svc.ServiceContext) func(fiber.Ctx, *logic.BackupPlanIn
 }
 func backupPlanDelete(s *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 	return func(c fiber.Ctx) (any, error) {
+		defer web_.AuditLog(c, "删除备份计划")
 		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "备份计划 Id 无效")

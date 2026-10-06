@@ -3,7 +3,13 @@
     <Handle v-if="data.kind === 'plan'" id="left" type="target" :position="Position.Left" />
     <div class="flow-card-title"><Folder v-if="data.kind === 'source'" /><CalendarClock v-if="data.kind === 'plan'" /><Database v-if="data.kind === 'repository'" />{{ data.title }}</div>
     <div class="flow-card-meta" :title="data.cron">{{ data.meta }}</div>
-    <div v-if="data.kind === 'plan'" class="flow-card-status" :class="{ 'is-enabled': data.status === '已启用', 'is-disabled': data.status === '已禁用' }">{{ data.status }}</div>
+    <div
+      v-if="data.kind === 'plan'"
+      class="flow-card-status"
+      :class="{ 'is-running': data.status?.includes('备份中') || data.status?.includes('排队'), 'is-success': data.status === '运行成功', 'is-failed': data.status === '运行失败' }"
+    >
+      {{ data.status }}
+    </div>
     <button v-if="data.kind === 'plan'" type="button" class="flow-card-run" title="立即执行" @click.stop="data.onRun?.()">
       <Play :size="12" />
     </button>
@@ -118,11 +124,19 @@ defineProps<{ data: { title: string; meta: string; cron?: string; status?: strin
     line-height: 1.5;
     pointer-events: none;
   }
-  .flow-card-status.is-enabled {
+  .flow-card-status.is-running {
+    color: #7c3aed;
+    background: rgba(139, 92, 246, 0.12);
+  }
+  .flow-card-status.is-success {
     color: #15803d;
     background: rgba(34, 197, 94, 0.12);
   }
-  .flow-card-status.is-disabled {
+  .flow-card-status.is-failed {
+    color: #b91c1c;
+    background: rgba(239, 68, 68, 0.12);
+  }
+  .flow-card-status:not(.is-running):not(.is-success):not(.is-failed) {
     color: #64748b;
     background: rgba(100, 116, 139, 0.12);
   }

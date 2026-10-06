@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 	"gorm.io/gorm"
@@ -160,12 +161,79 @@ func (s *PluginInstanceService) Info(id int64) (map[string]any, error) {
 
 // Snapshots 查询仓库快照。
 func (s *PluginInstanceService) Snapshots(id int64) (any, error) {
+	data, err := s.CachedRepositoryData(id)
+	if err != nil {
+		return nil, err
+	}
+	return data["snapshots"], nil
+}
+
+// RepositoryStats 查询整个仓库的实际数据统计。
+func (s *PluginInstanceService) RepositoryStats(id int64) (any, error) {
+	data, err := s.CachedRepositoryData(id)
+	if err != nil {
+		return nil, err
+	}
+	return data["stats"], nil
+}
+
+// RefreshRepositoryData 查询 Restic 仓库并更新详情缓存。
+func (s *PluginInstanceService) RefreshRepositoryData(id int64, summary map[string]any) (map[string]any, error) {
+	client, err := s.repositoryClient(id)
+	if err != nil {
+		return nil, err
+	}
+	snapshots, err := client.Snapshots(s.ctx)
+	if err != nil {
+		return nil, error_.NewWrapError("刷新仓库快照缓存失败", err)
+	}
+	stats, err := client.Stats(s.ctx)
+	if err != nil {
+		return nil, error_.NewWrapError("刷新仓库统计缓存失败", err)
+	}
+	if summary == nil {
+		cached, cacheErr := s.CachedRepositoryData(id)
+		if cacheErr == nil {
+			if cachedSummary, ok := cached["summary"].(map[string]any); ok {
+				summary = cachedSummary
+			}
+		}
+	}
+	data := map[string]any{"snapshots": snapshots, "stats": stats, "summary": summary, "updatedAt": time.Now().UnixMilli()}
+	raw, err := yaml.Marshal(data)
+	if err != nil {
+		return nil, error_.NewWrapError("序列化仓库详情缓存失败", err)
+	}
+	repositoryId := id
+	row := &models.RepoDataInfo{RepositoryId: &repositoryId, DataYAML: string(raw)}
+	if err := s.svcCtx.Db.Where("repository_id = ?", id).Assign(map[string]any{"data_yaml": string(raw)}).FirstOrCreate(row).Error; err != nil {
+		return nil, error_.NewWrapError("保存仓库详情缓存失败", err)
+	}
+	return data, nil
+}
+
+// CachedRepositoryData 读取仓库详情缓存，尚未刷新时返回空数据。
+func (s *PluginInstanceService) CachedRepositoryData(id int64) (map[string]any, error) {
+	var row models.RepoDataInfo
+	if err := s.svcCtx.Db.Where("repository_id = ?", id).First(&row).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return map[string]any{"snapshots": []any{}, "stats": map[string]any{}}, nil
+		}
+		return nil, error_.NewWrapError("读取仓库详情缓存失败", err)
+	}
+	data := map[string]any{}
+	if err := yaml.Unmarshal([]byte(row.DataYAML), &data); err != nil {
+		return nil, error_.NewWrapError("解析仓库详情缓存失败", err)
+	}
+	return data, nil
+}
+
+func (s *PluginInstanceService) repositoryClient(id int64) (*backup.ResticClient, error) {
 	config, err := s.Config(id)
 	if err != nil {
 		return nil, err
 	}
-	accessValue := config["accessId"]
-	access, err := s.resolveAccess(accessValue)
+	access, err := s.resolveAccess(config["accessId"])
 	if err != nil {
 		return nil, err
 	}
@@ -181,15 +249,42 @@ func (s *PluginInstanceService) Snapshots(id int64) (any, error) {
 	if !ok {
 		return nil, error_.NewTextError("仓库 SSH 授权类型无效")
 	}
-	clientConfig := backup.ClientConfig{
-		Environment:        backup.LocalResticEnvironment,
-		RepositoryAccess:   sshConfig,
-		RepositoryPath:     fmt.Sprint(config["path"]),
-		RepositoryPassword: fmt.Sprint(config["password"]),
-		Version:            s.svcCtx.Restic.Version,
+	return backup.NewResticClient(s.svcCtx, backup.ClientConfig{Environment: backup.LocalResticEnvironment, RepositoryAccess: sshConfig, RepositoryPath: fmt.Sprint(config["path"]), RepositoryPassword: fmt.Sprint(config["password"]), Version: s.svcCtx.Restic.Version}), nil
+}
+
+func (s *PluginInstanceService) CheckRepository(id int64) error {
+	client, err := s.repositoryClient(id)
+	if err != nil {
+		return err
 	}
+	return client.Check(s.ctx)
+}
+
+// SnapshotBrowser 查询指定 Restic 快照中的文件条目。
+func (s *PluginInstanceService) SnapshotBrowser(id int64, snapshotId string) (any, error) {
+	config, err := s.Config(id)
+	if err != nil {
+		return nil, err
+	}
+	access, err := s.resolveAccess(config["accessId"])
+	if err != nil {
+		return nil, err
+	}
+	accessConfig, ok := access["config"].(map[string]any)
+	if !ok {
+		return nil, error_.NewTextError("仓库 SSH 授权配置无效")
+	}
+	accessPlugin, err := s.svcCtx.Plugins.NewInstance(fmt.Sprint(access["pluginName"]), accessConfig)
+	if err != nil {
+		return nil, err
+	}
+	sshConfig, ok := accessPlugin.(*sshaccess.SshAccess)
+	if !ok {
+		return nil, error_.NewTextError("仓库 SSH 授权类型无效")
+	}
+	clientConfig := backup.ClientConfig{Environment: backup.LocalResticEnvironment, RepositoryAccess: sshConfig, RepositoryPath: fmt.Sprint(config["path"]), RepositoryPassword: fmt.Sprint(config["password"]), Version: s.svcCtx.Restic.Version}
 	client := backup.NewResticClient(s.svcCtx, clientConfig)
-	return client.Snapshots(s.ctx)
+	return client.SnapshotBrowser(s.ctx, snapshotId)
 }
 
 // Config returns the decrypted runtime configuration for an instance.

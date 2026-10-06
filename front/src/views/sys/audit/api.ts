@@ -3,6 +3,7 @@ export interface AuditLog {
   id: number;
   userId: number;
   username: string;
+  operation: string;
   method: string;
   path: string;
   status: number;

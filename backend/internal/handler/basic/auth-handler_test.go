@@ -68,7 +68,7 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 		t.Fatalf("DB() error = %v", err)
 	}
 	t.Cleanup(func() { _ = sqlDB.Close() })
-	if err := db_.Migrate(db, &models.User{}); err != nil {
+	if err := db_.Migrate(db, &models.User{}, &models.AuditLog{}); err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 	app := handler.NewApp(&svc.ServiceContext{
@@ -99,6 +99,10 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if badLogin.HTTPStatus != http.StatusOK || badLogin.Code == 0 {
 		t.Fatalf("bad login response = %#v, want HTTP 200 with business error", badLogin)
 	}
+	var failedAudit models.AuditLog
+	if err := db.Where("operation = ?", "登录失败").First(&failedAudit).Error; err != nil || failedAudit.Username != "admin" || failedAudit.UserId != 0 {
+		t.Fatalf("failed login audit = %#v, error = %v", failedAudit, err)
+	}
 
 	login := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
 		"username": "admin",
@@ -106,6 +110,10 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	})
 	if login.Code != 0 {
 		t.Fatalf("login business code = %d, want 0", login.Code)
+	}
+	var loginAudit models.AuditLog
+	if err := db.Where("operation = ?", "登录成功").First(&loginAudit).Error; err != nil || loginAudit.UserId == 0 {
+		t.Fatalf("successful login audit = %#v, error = %v", loginAudit, err)
 	}
 	token, ok := login.Data["token"].(string)
 	if !ok || token == "" {

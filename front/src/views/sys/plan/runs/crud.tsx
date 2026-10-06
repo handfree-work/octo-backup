@@ -1,13 +1,72 @@
 import { CreateCrudOptionsRet, dict } from "@fast-crud/fast-crud";
-import { getBackupRunPage, type BackupLog } from "../api";
+import { Modal } from "ant-design-vue";
+import { h } from "vue";
+import { getBackupRunLog, getBackupRunPage, type BackupLog } from "../api";
 export default function (): CreateCrudOptionsRet<BackupLog> {
+  const openRepository = (row: BackupLog) => {
+    if (row.repositoryId) {
+      window.location.hash = `#/sys/repository/${row.repositoryId}`;
+    }
+  };
+  const openResticLog = async (row: BackupLog) => {
+    const response = (await getBackupRunLog(row.id)) as { content?: string };
+    const content = response.content || "暂无 Restic 日志";
+    Modal.info({
+      title: `Restic 日志 - ${row.planName || `运行记录 ${row.id}`}`,
+      width: 860,
+      content: h(
+        "pre",
+        {
+          style: {
+            maxHeight: "560px",
+            margin: 0,
+            padding: "12px",
+            overflow: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+            background: "#f6f8fa",
+            borderRadius: "6px",
+            fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+            fontSize: "12px",
+            lineHeight: "1.55"
+          }
+        },
+        content
+      )
+    });
+  };
   return {
     crudOptions: {
       request: { pageRequest: ({ query }: any) => getBackupRunPage({ offset: query.offset, limit: query.limit, planId: query.query?.planId }) },
-      rowHandle: { show: false },
+      rowHandle: {
+        fixed: "right",
+        width: 90,
+        buttons: {
+          view: { show: false },
+          copy: { show: false },
+          edit: { show: false },
+          remove: { show: false },
+          repository: {
+            show: true,
+            text: "",
+            title: "查看备份仓库文件",
+            type: "link",
+            icon: "ion:folder-open-outline",
+            click: ({ row }: { row: BackupLog }) => openRepository(row)
+          },
+          log: {
+            show: true,
+            text: "",
+            title: "查看 Restic 日志",
+            type: "link",
+            icon: "ion:document-text-outline",
+            click: ({ row }: { row: BackupLog }) => openResticLog(row)
+          }
+        }
+      },
       columns: {
-        id: { title: "ID", type: "text" },
-        planName: { title: "备份计划", type: "text", search: { show: true } },
+        id: { title: "ID", type: "text", column: { width: 70 } },
+        planName: { title: "备份计划", type: "text", search: { show: true }, column: { width: 150 } },
         status: {
           title: "状态",
           type: "dict-select",
@@ -20,12 +79,25 @@ export default function (): CreateCrudOptionsRet<BackupLog> {
             ]
           })
         },
-        progress: { title: "进度", type: "number", column: { component: { name: "a-progress", vModel: "percent", size: "small" } } },
-        stage: { title: "阶段", type: "text" },
-        startedAt: { title: "开始时间", type: "datetime" },
-        finishedAt: { title: "结束时间", type: "datetime" },
-        error: { title: "错误信息", type: "text", column: { ellipsis: true, tooltip: true, width: 240 } },
-        result: { title: "执行结果", type: "text" }
+        progress: { title: "进度", type: "number", column: { width: 150, component: { name: "a-progress", vModel: "percent", size: "small" } } },
+        stage: { title: "阶段", type: "text", column: { width: 100 } },
+        startedAt: { title: "开始时间", type: "datetime", column: { width: 155 } },
+        finishedAt: { title: "结束时间", type: "datetime", column: { width: 155 } },
+        error: {
+          title: "错误信息",
+          type: "text",
+          column: {
+            width: 240,
+            cellRender: ({ value }: { value?: string }) => {
+              const text = value || "-";
+              return (
+                <a-tooltip title={value || undefined}>
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{text}</div>
+                </a-tooltip>
+              );
+            }
+          }
+        }
       } as any
     }
   };

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 type RemoteResticExecutor struct {
 	Access     *sshaccess.SshAccess
 	BinaryPath string
+	Progress   func(progress int, stage string)
+	RemoteDir  string
 }
 
 func repositoryURL(config *ClientConfig) string {
@@ -40,6 +43,7 @@ func (e *RemoteResticExecutor) Prepare(ctx context.Context, config *ClientConfig
 	if remoteDirectory == "" {
 		remoteDirectory = ".octo_backup"
 	}
+	e.RemoteDir = remoteDirectory
 	binaryPath := path.Join(remoteDirectory, "restic")
 	infoPath := path.Join(remoteDirectory, "restic.info")
 	infoOutput, infoErr := e.Access.Execute(ctx, "cat "+shellQuote(infoPath))
@@ -105,6 +109,9 @@ func repositorySftpCommand(config *ClientConfig) string {
 
 // Execute 在远程主机执行 Restic 命令，并通过 shell 环境赋值传入变量。
 func (e RemoteResticExecutor) Execute(ctx context.Context, args []string, environment []string) ([]byte, error) {
+	if containsResticAction(args, "backup") {
+		return e.executeBackupDetached(ctx, args, environment)
+	}
 	command := make([]string, 0, len(environment)+len(args)+1)
 	for _, value := range environment {
 		key, variable, found := strings.Cut(value, "=")
@@ -117,6 +124,111 @@ func (e RemoteResticExecutor) Execute(ctx context.Context, args []string, enviro
 		command = append(command, shellQuote(argument))
 	}
 	return e.Access.Execute(ctx, strings.Join(command, " "))
+}
+
+func containsResticAction(args []string, action string) bool {
+	for _, arg := range args {
+		if arg == action {
+			return true
+		}
+	}
+	return false
+}
+
+func (e RemoteResticExecutor) executeBackupDetached(ctx context.Context, args []string, environment []string) ([]byte, error) {
+	if e.Access == nil {
+		return nil, error_.NewTextError("远程 Restic 执行主机不能为空")
+	}
+	remoteDirectory := e.RemoteDir
+	if remoteDirectory == "" {
+		remoteDirectory = ".octo_backup"
+	}
+	jobPath := path.Join(remoteDirectory, "jobs", "restic-"+strconv.FormatInt(time.Now().UnixNano(), 10))
+	outputPath := jobPath + ".output"
+	statusPath := jobPath + ".status"
+	command := []string{"mkdir -p " + shellQuote(path.Dir(jobPath)) + "; rm -f " + shellQuote(outputPath) + " " + shellQuote(statusPath) + "; ("}
+	for _, value := range environment {
+		key, variable, found := strings.Cut(value, "=")
+		if found {
+			command = append(command, key+"="+shellQuote(variable))
+		}
+	}
+	command = append(command, shellQuote(e.BinaryPath))
+	for _, argument := range args {
+		command = append(command, shellQuote(argument))
+	}
+	command = append(command, ">"+shellQuote(outputPath)+" 2>&1; code=$?; printf '%s' \"$code\" > "+shellQuote(statusPath)+") </dev/null >/dev/null 2>&1 &")
+	if err := e.Access.Close(); err != nil {
+		return nil, error_.NewWrapError("关闭远程 Restic 准备连接失败", err)
+	}
+	if err := e.Access.Connect(ctx); err != nil {
+		return nil, error_.NewWrapError("启动远程 Restic 任务时连接失败", err)
+	}
+	if _, err := e.Access.Execute(ctx, strings.Join(command, " ")); err != nil {
+		_ = e.Access.Close()
+		return nil, error_.NewWrapError("启动远程 Restic 任务失败", err)
+	}
+	_ = e.Access.Close()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Second):
+		}
+		if err := e.Access.Connect(ctx); err != nil {
+			return nil, error_.NewWrapError("轮询远程 Restic 任务时连接失败", err)
+		}
+		status, statusErr := e.Access.Execute(ctx, "cat "+shellQuote(statusPath)+" 2>/dev/null || true")
+		output, outputErr := e.Access.Execute(ctx, "cat "+shellQuote(outputPath)+" 2>/dev/null || true")
+		_ = e.Access.Close()
+		if statusErr != nil || outputErr != nil {
+			continue
+		}
+		e.reportProgress(output)
+		codeText := strings.TrimSpace(string(status))
+		if codeText == "" {
+			continue
+		}
+		code, err := strconv.Atoi(codeText)
+		if err != nil {
+			return output, error_.NewTextError("远程 Restic 任务状态无效: %s", codeText)
+		}
+		if code != 0 {
+			e.cleanupRemoteJob(ctx, outputPath, statusPath)
+			return output, error_.NewTextError("远程 Restic 备份失败: %s", strings.TrimSpace(string(output)))
+		}
+		e.cleanupRemoteJob(ctx, outputPath, statusPath)
+		if e.Progress != nil {
+			e.Progress(100, "备份完成")
+		}
+		return output, nil
+	}
+}
+
+func (e RemoteResticExecutor) cleanupRemoteJob(ctx context.Context, outputPath, statusPath string) {
+	if e.Access.Connect(ctx) != nil {
+		return
+	}
+	_, _ = e.Access.Execute(ctx, "rm -f "+shellQuote(outputPath)+" "+shellQuote(statusPath))
+	_ = e.Access.Close()
+}
+
+func (e RemoteResticExecutor) reportProgress(output []byte) {
+	if e.Progress == nil {
+		return
+	}
+	progress := 5
+	for _, line := range strings.Split(string(output), "\n") {
+		var message struct {
+			MessageType string  `json:"message_type"`
+			PercentDone float64 `json:"percent_done"`
+		}
+		if json.Unmarshal([]byte(line), &message) == nil && message.MessageType == "status" {
+			progress = int(message.PercentDone * 100)
+		}
+	}
+	e.Progress(progress, "远程 Restic 备份中")
 }
 
 // Close 关闭远程 SSH 执行连接。

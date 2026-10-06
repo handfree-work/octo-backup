@@ -24,6 +24,7 @@ func TestAuditMiddlewarePersistsAuthenticatedApiOperation(t *testing.T) {
 	app.Use(auditMiddleware(&svc.ServiceContext{Db: database}))
 	app.Post("/api/test", func(c fiber.Ctx) error {
 		c.Locals("authClaims", &web_.Claims{UserId: 7, Username: "alice"})
+		web_.AuditLog(c, "测试操作")
 		return c.SendStatus(200)
 	})
 	if _, err := app.Test(httptest.NewRequest("POST", "/api/test", nil)); err != nil {
@@ -33,7 +34,7 @@ func TestAuditMiddlewarePersistsAuthenticatedApiOperation(t *testing.T) {
 	if err := database.First(&entry).Error; err != nil {
 		t.Fatal(err)
 	}
-	if entry.UserId != 7 || entry.Username != "alice" || entry.Path != "/api/test" || entry.Method != "POST" {
+	if entry.UserId != 7 || entry.Username != "alice" || entry.Operation != "测试操作" || entry.Path != "/api/test" || entry.Method != "POST" {
 		t.Fatalf("unexpected audit entry: %+v", entry)
 	}
 }

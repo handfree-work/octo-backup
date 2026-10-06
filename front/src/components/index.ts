@@ -7,6 +7,7 @@ const PluginSelector = defineAsyncComponent(() => import("./plugin-selector/inde
 const PluginFileInput = defineAsyncComponent(() => import("./plugin-file-input/index.vue"));
 const PluginPathSelector = defineAsyncComponent(() => import("./plugin-path-selector/index.vue"));
 const CronEditor = defineAsyncComponent(() => import("./cron-editor/index.vue"));
+const RetentionPolicy = defineAsyncComponent(() => import("./retention-policy/index.vue"));
 export default {
   install(app: any) {
     app.component("FsHighlight", AsyncHighLight);
@@ -15,5 +16,6 @@ export default {
     app.component("PluginFileInput", PluginFileInput);
     app.component("PluginPathSelector", PluginPathSelector);
     app.component("CronEditor", CronEditor);
+    app.component("RetentionPolicy", RetentionPolicy);
   }
 };

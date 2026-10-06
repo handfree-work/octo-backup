@@ -2,7 +2,9 @@ package logic
 
 import (
 	"context"
+	"encoding/json"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 	"time"
 
 	"handfree-work/octo-backup/internal/base/db_"
@@ -46,6 +48,17 @@ func (s *BackupExecuteService) Execute(id int64, logId int64) (*BackupExecuteRes
 		}
 		_ = s.svcCtx.Db.Model(&models.BackupLog{}).Where("id = ?", logId).Updates(fields).Error
 	}
+	saveOutput := func(output string) {
+		content := &models.BackupLogContent{BackupLogId: logId, Content: output}
+		result := s.svcCtx.Db.Where("backup_log_id = ?", logId).First(&models.BackupLogContent{})
+		if result.Error == nil {
+			_ = s.svcCtx.Db.Model(&models.BackupLogContent{}).Where("backup_log_id = ?", logId).Update("content", output).Error
+			return
+		}
+		if result.Error == gorm.ErrRecordNotFound {
+			_ = s.svcCtx.Db.Create(content).Error
+		}
+	}
 	updateLog("running", 5, "读取备份计划", "", "")
 	log_.Logger.Info("读取备份计划", zap.Int64("planId", id))
 	dao := db_.New[models.BackupPlan](db_.NewCtx(s.ctx, s.svcCtx.Db))
@@ -76,18 +89,24 @@ func (s *BackupExecuteService) Execute(id int64, logId int64) (*BackupExecuteRes
 		setStatus("failed", err.Error())
 		return nil, err
 	}
-	result, err := s.doBackup(plan, source)
+	result, err := s.doBackup(plan, source, logId)
 	if err != nil {
-		updateLog("failed", 100, "执行备份", "", err.Error())
+		resultText := ""
+		if result != nil {
+			resultText = result.Output
+		}
+		saveOutput(resultText)
+		updateLog("failed", 100, "执行备份", resultText, err.Error())
 		setStatus("failed", err.Error())
 		return nil, err
 	}
 	setStatus("success", "")
-	updateLog("success", 100, "完成", result.Status, "")
+	saveOutput(result.Output)
+	updateLog("success", 100, "完成", "", "")
 	return &BackupExecuteResult{Id: id, Status: result.Status}, nil
 }
 
-func (s *BackupExecuteService) doBackup(plan *models.BackupPlan, source plugin.PluginInstance) (*restic.BackupResult, error) {
+func (s *BackupExecuteService) doBackup(plan *models.BackupPlan, source plugin.PluginInstance, logId int64) (*restic.BackupResult, error) {
 	sourceConfig, ok := source.(*sshsource.SshSource)
 	if !ok {
 		return nil, error_.NewTextError("备份来源插件不支持备份配置")
@@ -140,6 +159,20 @@ func (s *BackupExecuteService) doBackup(plan *models.BackupPlan, source plugin.P
 		Version:            s.svcCtx.Restic.Version,
 		RemoteDirectory:    ".octo_backup",
 		ResticBinary:       binary,
+		Compression:        plan.Compression,
+		KeepPolicy:         map[string]any{},
+		Progress: func(progress int, stage string) {
+			_ = s.svcCtx.Db.Model(&models.BackupLog{}).Where("id = ?", logId).Updates(map[string]any{
+				"status":   "running",
+				"progress": progress,
+				"stage":    stage,
+			})
+		},
+	}
+	if plan.KeepPolicy != "" {
+		if err := json.Unmarshal([]byte(plan.KeepPolicy), &clientConfig.KeepPolicy); err != nil {
+			return nil, error_.NewWrapError("解析备份保留策略失败", err)
+		}
 	}
 	backupRequest := restic.BackupRequest{
 		RepositoryTag: plan.RepoTag,
@@ -150,6 +183,9 @@ func (s *BackupExecuteService) doBackup(plan *models.BackupPlan, source plugin.P
 	result, err := client.Backup(s.ctx, backupRequest)
 	if err != nil {
 		return nil, error_.NewWrapError("执行备份任务失败", err)
+	}
+	if _, refreshErr := instance.RefreshRepositoryData(plan.RepositoryId, result.Summary); refreshErr != nil {
+		log_.Logger.Warn("备份完成后刷新仓库详情缓存失败", zap.Int64("repositoryId", plan.RepositoryId), zap.Error(refreshErr))
 	}
 	return result, nil
 }

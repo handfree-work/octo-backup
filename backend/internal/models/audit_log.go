@@ -5,6 +5,7 @@ type AuditLog struct {
 	Id        *int64 `json:"id" gorm:"primaryKey;column:id"`
 	UserId    int64  `json:"userId" gorm:"column:user_id;index"`
 	Username  string `json:"username" gorm:"column:username;size:100"`
+	Operation string `json:"operation" gorm:"column:operation;size:100"`
 	Method    string `json:"method" gorm:"column:method;size:10"`
 	Path      string `json:"path" gorm:"column:path;size:255"`
 	Status    int    `json:"status" gorm:"column:status"`

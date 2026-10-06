@@ -42,6 +42,7 @@ const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
 const { setCenter } = useVueFlow();
 const nodeTypes = { flow: PlanFlowNode };
+const runStates = ref<Record<number, { status: string; progress: number; stage: string; error?: string }>>({});
 async function runPlan(planId: number) {
   const plan = plans.value.find((item) => item.id === planId);
   Modal.confirm({
@@ -51,17 +52,26 @@ async function runPlan(planId: number) {
     cancelText: "取消",
     onOk: async () => {
       const runResult = (await runBackupPlan(planId)) as { logId: number };
-      let runInfo = (await getBackupRunInfo(runResult.logId)) as { status: string; progress: number; stage: string; error?: string };
-      while (runInfo.status === "queued" || runInfo.status === "running") {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        runInfo = (await getBackupRunInfo(runResult.logId)) as { status: string; progress: number; stage: string; error?: string };
-      }
+      void pollBackupRun(planId, runResult.logId);
+    }
+  });
+}
+
+async function pollBackupRun(planId: number, logId: number) {
+  while (true) {
+    const runInfo = (await getBackupRunInfo(logId)) as { status: string; progress: number; stage: string; error?: string };
+    runStates.value = { ...runStates.value, [planId]: runInfo };
+    makeGraph();
+    if (runInfo.status !== "queued" && runInfo.status !== "running") {
       if (runInfo.status === "failed") {
         Modal.error({ title: "备份失败", content: runInfo.error || runInfo.stage });
       }
       await loadFlow();
+      delete runStates.value[planId];
+      return;
     }
-  });
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 }
 
 function makeGraph() {
@@ -77,6 +87,19 @@ function makeGraph() {
   });
   const repositoryTotalHeight = repositoryHeights.reduce((totalHeight, nodeHeight) => totalHeight + nodeHeight, 0) + Math.max(0, repositories.value.length - 1) * repositoryGap;
   let repositoryPositionY = centerPositionY - repositoryTotalHeight / 2;
+  const getPlanStatus = (plan: BackupPlan) => {
+    const runState = runStates.value[plan.id];
+    if (runState && (runState.status === "running" || runState.status === "queued")) {
+      return `${runState.stage || "排队中"} ${runState.progress || 0}%`;
+    }
+    if (plan.lastStatus === "success") {
+      return "运行成功";
+    }
+    if (plan.lastStatus === "failed") {
+      return "运行失败";
+    }
+    return "未运行";
+  };
   sources.value.forEach((source) => {
     const sourceIndex = sources.value.indexOf(source);
     graphNodes.push({
@@ -124,7 +147,7 @@ function makeGraph() {
         title: plan.name,
         meta: "下次执行：" + (getCronNextTimes(plan.schedule, 1)[0] || "无"),
         cron: plan.schedule,
-        status: plan.enabled ? "已启用" : "已禁用",
+        status: getPlanStatus(plan),
         kind: "plan",
         onRun: () => runPlan(plan.id)
       },
@@ -157,7 +180,12 @@ function makeGraph() {
       const maximumY = Math.max(...nodes.value.map((node) => node.position.y + nodeHeight));
       const graphCenterX = (minimumX + maximumX) / 2;
       const graphCenterY = (minimumY + maximumY) / 2;
-      setCenter(graphCenterX, graphCenterY, { zoom: 1.1 });
+      const zoom = 1.1;
+      const canvasElement = document.querySelector<HTMLElement>(".plan-flow-page .flow-canvas");
+      const canvasHeight = canvasElement?.clientHeight || 0;
+      const topOffset = 220;
+      const targetCenterY = graphCenterY + (canvasHeight / 2 - topOffset) / zoom;
+      setCenter(graphCenterX, targetCenterY, { zoom });
     });
   });
 }
@@ -258,4 +286,3 @@ loadFlow();
   }
 }
 </style>
-

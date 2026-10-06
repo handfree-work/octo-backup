@@ -23,6 +23,18 @@ export default {
     app.use(Card);
 
     app.component(
+      "AList",
+      defineAsyncComponent(() => import("ant-design-vue/es/list/index.js"))
+    );
+    app.component(
+      "ADirectoryTree",
+      defineAsyncComponent(() => import("ant-design-vue/es/tree/DirectoryTree.js"))
+    );
+    app.component(
+      "ASpace",
+      defineAsyncComponent(() => import("ant-design-vue/es/space/index"))
+    );
+    app.component(
       "ASegmented",
       defineAsyncComponent(() => import("ant-design-vue/es/segmented/src/segmented"))
     );

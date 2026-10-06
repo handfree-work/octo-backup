@@ -30,6 +30,7 @@ func RegisterAuth(app *fiber.App, svcCtx *svc.ServiceContext) {
 // @Router /api/auth/register [post]
 func registerUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.CreateUserInput) (any, error) {
 	return func(c fiber.Ctx, input *logic.CreateUserInput) (any, error) {
+		defer web_.AuditLog(c, "注册用户")
 		return logic.NewUserService(c.Context(), svcCtx).Register(input)
 	}
 }
@@ -48,8 +49,12 @@ func registerUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.CreateUserI
 
 func loginUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.LoginInput) (any, error) {
 	return func(c fiber.Ctx, input *logic.LoginInput) (any, error) {
+		if input != nil {
+			c.Locals("auditUsername", input.Username)
+		}
 		user, err := logic.NewUserService(c.Context(), svcCtx).Login(input)
 		if err != nil {
+			web_.AuditLog(c, "登录失败")
 			return nil, err
 		}
 		if user.Id == nil {
@@ -57,8 +62,11 @@ func loginUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.LoginInput) (a
 		}
 		token, expiresAt, err := svcCtx.Auth.Issue(*user.Id, user.Username, user.Role)
 		if err != nil {
+			web_.AuditLog(c, "登录失败")
 			return nil, error_.NewWrapError("签发登录凭证失败", err)
 		}
+		c.Locals("authClaims", &web_.Claims{UserId: *user.Id, Username: user.Username, Role: user.Role})
+		web_.AuditLog(c, "登录成功")
 		return fiber.Map{
 			"token":     token,
 			"expiresAt": expiresAt.Unix(),
