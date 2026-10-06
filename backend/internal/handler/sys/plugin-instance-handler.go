@@ -1,6 +1,7 @@
 package sys
 
 import (
+	"fmt"
 	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/base/error_/code_"
 	"handfree-work/octo-backup/internal/base/web_"
@@ -124,11 +125,11 @@ func pluginInstanceSimpleByIDs(s *svc.ServiceContext) func(fiber.Ctx, *pluginIns
 }
 func pluginInstanceUpdate(s *svc.ServiceContext) func(fiber.Ctx, *logic.PluginInstanceInput) (any, error) {
 	return func(c fiber.Ctx, in *logic.PluginInstanceInput) (any, error) {
-		defer web_.AuditLog(c, "更新插件实例")
 		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "插件 Id 无效")
 		}
+		defer web_.AuditLog(c, fmt.Sprintf("更新插件实例(%d,%v)", id, in.Name))
 		return logic.NewPluginInstanceService(c.Context(), s).Update(id, in)
 	}
 }
@@ -150,7 +151,7 @@ func pluginInstancePage(s *svc.ServiceContext) func(fiber.Ctx, *logic.PluginInst
 }
 func pluginInstanceCreate(s *svc.ServiceContext) func(fiber.Ctx, *logic.PluginInstanceInput) (any, error) {
 	return func(c fiber.Ctx, in *logic.PluginInstanceInput) (any, error) {
-		defer web_.AuditLog(c, "创建插件实例")
+		defer web_.AuditLog(c, fmt.Sprintf("创建插件实例(%v)", in.PluginName))
 		return logic.NewPluginInstanceService(c.Context(), s).Create(in)
 	}
 }
@@ -163,17 +164,17 @@ type pluginInstanceActionRequest struct {
 
 func pluginInstanceAction(s *svc.ServiceContext) func(fiber.Ctx, *pluginInstanceActionRequest) (any, error) {
 	return func(c fiber.Ctx, in *pluginInstanceActionRequest) (any, error) {
-		defer web_.AuditLog(c, "执行插件操作")
+		defer web_.AuditLog(c, fmt.Sprintf("执行插件操作(Id=%d, action=%v)", in.Id, in.Action))
 		return logic.NewPluginInstanceService(c.Context(), s).Action(in.Id, in.Action, in.Params)
 	}
 }
 func pluginInstanceDelete(s *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 	return func(c fiber.Ctx) (any, error) {
-		defer web_.AuditLog(c, "删除插件实例")
 		id, err := strconv.ParseInt(c.Query("id"), 10, 64)
 		if err != nil {
 			return nil, error_.NewCodeTextError(code_.ParamError, "插件 Id 无效")
 		}
+		defer web_.AuditLog(c, fmt.Sprintf("删除插件实例(Id=%d)", id))
 		if err := logic.NewPluginInstanceService(c.Context(), s).Delete(id); err != nil {
 			return nil, err
 		}

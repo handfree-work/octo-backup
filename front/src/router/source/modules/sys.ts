@@ -72,13 +72,6 @@ export const sysResources = [
         meta: { icon: "ion:list-outline", permission: "read" },
         path: "/sys/audit",
         component: "/sys/audit/index.vue"
-      },
-      {
-        title: "已备份文件",
-        name: "repository-files",
-        meta: { icon: "ion:folder-open-outline", permission: "read" },
-        path: "/sys/repository/files",
-        component: "/sys/repository/files/index.vue"
       }
     ]
   }

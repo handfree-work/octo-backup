@@ -13,3 +13,6 @@ type AuditLog struct {
 	Duration  int64  `json:"duration" gorm:"column:duration;comment:耗时毫秒"`
 	CreatedAt int64  `json:"createdAt" gorm:"autoCreateTime:milli;column:created_at;index"`
 }
+
+// TableName 返回审计日志表名。
+func (AuditLog) TableName() string { return "audit_log" }

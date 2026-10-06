@@ -84,6 +84,12 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
+	if database.Migrator().HasTable("audit_logs") && !database.Migrator().HasTable("audit_log") {
+		if err := database.Exec("ALTER TABLE audit_logs RENAME TO audit_log").Error; err != nil {
+			log_.Logger.Error("迁移审计日志表失败", zap.Error(err))
+			return
+		}
+	}
 	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}, &models.BackupLog{}, &models.BackupLogContent{}, &models.AuditLog{}, &models.RepoDataInfo{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
 		return

@@ -11,15 +11,18 @@ import (
 
 // AuditLogPageQuery 定义审计日志分页和筛选条件。
 type AuditLogPageQuery struct {
-	Offset, Limit  int64
-	Username, Path string
+	Offset   int64  `json:"offset"`
+	Limit    int64  `json:"limit"`
+	Username string `json:"username"`
+	Path     string `json:"path"`
 }
 
 // AuditLogPageResult 返回审计日志分页结果。
 type AuditLogPageResult struct {
-	Offset, Limit int64
-	Records       []models.AuditLog
-	Total         int64
+	Offset  int64             `json:"offset"`
+	Limit   int64             `json:"limit"`
+	Records []models.AuditLog `json:"records"`
+	Total   int64             `json:"total"`
 }
 
 // Service 提供审计日志查询能力。
