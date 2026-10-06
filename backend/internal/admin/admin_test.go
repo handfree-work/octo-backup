@@ -81,4 +81,3 @@ func TestLocaleLabels(t *testing.T) {
 		t.Fatalf("unsupported locale should fall back to Chinese, got %#v", got)
 	}
 }
-

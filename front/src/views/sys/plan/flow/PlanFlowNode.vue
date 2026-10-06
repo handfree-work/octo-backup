@@ -1,10 +1,19 @@
 <template>
-  <div :class="['plan-flow-node', `flow-${data.kind}`]">
-    <Handle v-if="data.kind === 'plan' || data.kind === 'repository'" id="left" type="target" :position="Position.Left" />
-    <div class="flow-card-title"><Server v-if="data.kind === 'source'" /><CalendarClock v-if="data.kind === 'plan'" /><Database v-if="data.kind === 'repository'" />{{ data.title }}</div>
-    <div class="flow-card-meta">{{ data.meta }}</div>
+  <div :class="['plan-flow-node', `flow-${data.kind}`, 'pointer']">
+    <Handle v-if="data.kind === 'plan'" id="left" type="target" :position="Position.Left" />
+    <div class="flow-card-title"><Folder v-if="data.kind === 'source'" /><CalendarClock v-if="data.kind === 'plan'" /><Database v-if="data.kind === 'repository'" />{{ data.title }}</div>
+    <div class="flow-card-meta" :title="data.cron">{{ data.meta }}</div>
     <div v-if="data.kind === 'plan'" class="flow-card-status" :class="{ 'is-enabled': data.status === '已启用', 'is-disabled': data.status === '已禁用' }">{{ data.status }}</div>
+    <button v-if="data.kind === 'plan'" type="button" class="flow-card-run" title="立即执行" @click.stop="data.onRun?.()">
+      <Play :size="12" />
+    </button>
     <Handle v-if="data.kind === 'source' || data.kind === 'plan'" id="right" type="source" :position="Position.Right" />
+    <div v-if="data.kind === 'repository'" class="flow-card-paths">
+      <div v-for="subPath in data.subPaths" :key="subPath.id" class="flow-card-path">
+        <Handle :id="`path-${subPath.id}`" type="target" :position="Position.Left" />
+        <span>{{ subPath.path }}</span>
+      </div>
+    </div>
   </div>
 </template>
 <script setup lang="ts">
@@ -13,12 +22,13 @@ defineOptions({
 });
 
 import { Handle, Position } from "@vue-flow/core";
-import { CalendarClock, Database, Server } from "lucide-vue-next";
-defineProps<{ data: { title: string; meta: string; status?: string; kind: "source" | "plan" | "repository" } }>();
+import { CalendarClock, Database, Folder } from "lucide-vue-next";
+import { Play } from "lucide-vue-next";
+defineProps<{ data: { title: string; meta: string; cron?: string; status?: string; kind: "source" | "plan" | "repository"; subPaths?: Array<{ id: number; path: string }>; onRun?: () => void } }>();
 </script>
 <style lang="less">
 .plan-flow-node {
-  width: 188px;
+  width: 240px;
   padding: 7px 10px;
   min-height: 50px;
   border-radius: 12px;
@@ -53,6 +63,11 @@ defineProps<{ data: { title: string; meta: string; status?: string; kind: "sourc
       flex: 0 0 auto;
     }
   }
+
+  .flow-card-meta {
+    font-weight: 450;
+    padding-right: 28px;
+  }
   &.flow-source .flow-card-title svg {
     color: #2563eb;
   }
@@ -66,6 +81,29 @@ defineProps<{ data: { title: string; meta: string; status?: string; kind: "sourc
     margin-top: 3px;
     color: #718096;
     font-size: 11px;
+  }
+  .flow-card-paths {
+    margin-top: 5px;
+    border-top: 1px solid rgba(16, 185, 129, 0.18);
+    padding-top: 4px;
+  }
+  .flow-card-path {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 18px;
+    padding-left: 8px;
+    color: #047857;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .flow-card-path .vue-flow__handle {
+    left: -16px;
+    width: 7px;
+    height: 7px;
+    border-width: 1px;
+    color: #10b981;
+    background: #10b981;
   }
   .flow-card-status {
     position: absolute;
@@ -87,6 +125,26 @@ defineProps<{ data: { title: string; meta: string; status?: string; kind: "sourc
   .flow-card-status.is-disabled {
     color: #64748b;
     background: rgba(100, 116, 139, 0.12);
+  }
+  .flow-card-run {
+    position: absolute;
+    right: 9px;
+    bottom: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: #7c3aed;
+    background: rgba(139, 92, 246, 0.1);
+    cursor: pointer;
+  }
+  .flow-card-run:hover {
+    color: #fff;
+    background: #7c3aed;
   }
   .vue-flow__handle {
     width: 10px;

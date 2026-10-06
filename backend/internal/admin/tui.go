@@ -135,4 +135,3 @@ func runTUI(db *gorm.DB, input io.Reader, output io.Writer) error {
 	_, err := tea.NewProgram(newTUIModel(db), tea.WithInput(input), tea.WithOutput(output)).Run()
 	return err
 }
-

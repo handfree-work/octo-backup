@@ -3,6 +3,8 @@ export interface PluginPathNode {
   key: string;
   children?: PluginPathNode[];
   isLeaf?: boolean;
+  fileCount?: number;
+  directoryCount?: number;
 }
 
 export function parsePathInput(value: string | string[] | null | undefined): string[] {
@@ -14,6 +16,50 @@ export function formatPathInput(value: string | string[] | null | undefined): st
   return parsePathInput(value).join("\n");
 }
 
+export function getDirectoryRequestPath(path: unknown, cursor: unknown): string {
+  const requestedPath = String(path ?? "").trim();
+  if (requestedPath) {
+    return requestedPath;
+  }
+  const requestedCursor = String(cursor ?? "").trim();
+  if (requestedCursor) {
+    return requestedCursor;
+  }
+  return "/";
+}
+
+export function updatePathNodeChildren(nodes: PluginPathNode[], key: string, children: PluginPathNode[]): boolean {
+  for (const currentNode of nodes) {
+    if (currentNode.key === key) {
+      currentNode.children = children;
+      currentNode.isLeaf = children.length === 0;
+      return true;
+    }
+    if (currentNode.children && updatePathNodeChildren(currentNode.children, key, children)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+export function updatePathNodeCounts(nodes: PluginPathNode[], key: string, result: unknown): boolean {
+  for (const currentNode of nodes) {
+    if (currentNode.key === key) {
+      const data = result as any;
+      const fileCount = Number(data?.fileCount);
+      const directoryCount = Number(data?.directoryCount);
+      if (!Number.isFinite(fileCount) || !Number.isFinite(directoryCount)) return false;
+      currentNode.fileCount = fileCount;
+      currentNode.directoryCount = directoryCount;
+      const path = currentNode.key;
+      currentNode.title = `${path}（文件 ${fileCount}，子目录 ${directoryCount}）`;
+      return true;
+    }
+    if (currentNode.children && updatePathNodeCounts(currentNode.children, key, result)) return true;
+  }
+  return false;
+}
+
 export function normalizePathNodes(value: unknown): PluginPathNode[] {
   const source = Array.isArray(value) ? value : (value as any)?.paths || (value as any)?.records || (value as any)?.data || [];
   if (!Array.isArray(source)) return [];
@@ -21,7 +67,12 @@ export function normalizePathNodes(value: unknown): PluginPathNode[] {
     .map((item: any) => {
       const path = String(item?.path ?? item?.key ?? item?.name ?? item ?? "");
       const children = normalizePathNodes(item?.children);
-      return { title: String(item?.title ?? item?.name ?? path), key: path, isLeaf: item?.isLeaf ?? children.length === 0, ...(children.length ? { children } : {}) };
+      const fileCount = Number(item?.fileCount);
+      const directoryCount = Number(item?.directoryCount);
+      const hasCounts = Number.isFinite(fileCount) && Number.isFinite(directoryCount);
+      const title = String(item?.title ?? item?.name ?? path);
+      const countSuffix = hasCounts ? `（文件 ${fileCount}，子目录 ${directoryCount}）` : "";
+      return { title: `${title}${countSuffix}`, key: path, isLeaf: item?.isLeaf ?? children.length === 0, ...(hasCounts ? { fileCount, directoryCount } : {}), ...(children.length ? { children } : {}) };
     })
     .filter((item) => item.key);
 }

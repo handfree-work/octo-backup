@@ -20,4 +20,3 @@ func RegisterRoutes(router fiber.Router, config Config, routes ...Route) {
 		router.Post(route.Path, handlers[0], handlers[1:]...)
 	}
 }
-

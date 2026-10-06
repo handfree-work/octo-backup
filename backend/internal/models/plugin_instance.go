@@ -8,6 +8,7 @@ type PluginInstance struct {
 	PluginType  string `json:"pluginType" gorm:"size:30;not null;index"`
 	PluginName  string `json:"pluginName" gorm:"size:100;not null;index"`
 	ConfigYAML  string `json:"-" gorm:"type:text;not null"`
+	Vars        string `json:"-" gorm:"column:vars;type:text;not null;default:''"`
 	Description string `json:"description" gorm:"size:500"`
 }
 

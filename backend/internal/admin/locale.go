@@ -13,4 +13,3 @@ func systemLocale() string {
 	}
 	return platformLocale()
 }
-

@@ -12,7 +12,19 @@ var metadata []byte
 type Provider struct{}
 
 func (Provider) Definition() (*plugin.Definition, error) {
-	return plugin.NewDefinition(metadata, func(map[string]any) (plugin.ActionExecutor, error) { return executor{}, nil })
+	return plugin.NewDefinition(metadata, &SftpRepository{})
 }
-type executor struct{}
-func (executor) ExecuteAction(_ context.Context, action string, _ map[string]any) (any, error) { if action == "onBuild" { return map[string]any{"ok": true}, nil }; return nil, plugin.ErrActionNotFound }
+
+type SftpRepository struct {
+	PluginContext *plugin.PluginContext
+	Path          string
+	AccessId      int
+	Password      string
+}
+
+func (SftpRepository) ExecuteAction(_ context.Context, action string, _ map[string]any) (any, error) {
+	if action == "onBuild" {
+		return map[string]any{"ok": true}, nil
+	}
+	return nil, plugin.NewActionNotFoundError()
+}

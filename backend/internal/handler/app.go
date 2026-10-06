@@ -21,6 +21,7 @@ func NewApp(svcCtx *svc.ServiceContext) *fiber.App {
 
 // Register 按 basic、user、sys 模块统一注册 handler。
 func Register(app *fiber.App, svcCtx *svc.ServiceContext) {
+	app.Use(auditMiddleware(svcCtx))
 	basic.Register(app)
 	basic.RegisterAuth(app, svcCtx)
 	userHandler.Register(app, svcCtx)

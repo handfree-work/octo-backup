@@ -1,11 +1,9 @@
 package basic
 
 import (
-	"fmt"
-
 	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/base/web_"
-	logic "handfree-work/octo-backup/internal/service"
+	logic "handfree-work/octo-backup/internal/modules/user"
 	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
@@ -59,7 +57,7 @@ func loginUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.LoginInput) (a
 		}
 		token, expiresAt, err := svcCtx.Auth.Issue(*user.Id, user.Username, user.Role)
 		if err != nil {
-			return nil, error_.NewTextError(fmt.Sprintf("签发登录凭证失败: %v", err))
+			return nil, error_.NewWrapError("签发登录凭证失败", err)
 		}
 		return fiber.Map{
 			"token":     token,

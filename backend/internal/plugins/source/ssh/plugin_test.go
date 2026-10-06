@@ -13,10 +13,10 @@ func TestProviderDefinitionDeclaresSSHSourceFieldsAndPathAction(t *testing.T) {
 	if string(definition.Metadata.Type) != "source" || definition.Metadata.Name != "source.ssh" {
 		t.Fatalf("metadata identity = %#v", definition.Metadata)
 	}
-	if len(definition.Metadata.Fields) != 2 || definition.Metadata.Fields[0].Key != "accessId" || !definition.Metadata.Fields[0].Required || definition.Metadata.Fields[1].Key != "paths" || !definition.Metadata.Fields[1].Required {
+	if len(definition.Metadata.Fields) != 3 || definition.Metadata.Fields[0].Key != "accessId" || !definition.Metadata.Fields[0].Required || definition.Metadata.Fields[1].Key != "paths" || !definition.Metadata.Fields[1].Required || definition.Metadata.Fields[2].Key != "excludePaths" || definition.Metadata.Fields[2].Required {
 		t.Fatalf("source fields = %#v", definition.Metadata.Fields)
 	}
-	if definition.Metadata.Fields[1].Type != "array" || definition.Metadata.Fields[1].Component["name"] != "plugin-path-selector" {
+	if definition.Metadata.Fields[1].Type != "array" || definition.Metadata.Fields[1].Component["name"] != "plugin-path-selector" || definition.Metadata.Fields[2].Type != "array" || definition.Metadata.Fields[2].Component["name"] != "plugin-path-selector" {
 		t.Fatalf("paths field = %#v", definition.Metadata.Fields[1])
 	}
 	if len(definition.Metadata.Actions) != 1 || definition.Metadata.Actions[0].Name != "onListPaths" {

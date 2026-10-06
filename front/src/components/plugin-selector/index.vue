@@ -1,16 +1,17 @@
 <template>
   <div class="plugin-selector component-plugin-selector">
     <fs-table-select
-      :model-value="value"
+      :model-value="modelValue"
       :dict="pluginDict"
       :create-crud-options="pluginCrudOptions"
       :dialog="{ title: dialogTitle }"
       :show-current="false"
+      height="50vh"
       @update:model-value="onUpdateValue"
       @selected-change="onSelectedChange"
     >
       <template #default="{ open }">
-        <a-tag v-if="selectedRecord" color="green">{{ selectedRecord.name || value }}</a-tag>
+        <a-tag v-if="selectedRecord" color="green">{{ selectedRecord.name || modelValue }}</a-tag>
         <span v-else class="plugin-selector__placeholder">{{ placeholder }}</span>
         <a-button v-if="selectedRecord" type="text" size="small" aria-label="清除授权" @click="clear">
           <CloseCircleOutlined />
@@ -34,11 +35,11 @@ import type { PluginInstance, PluginInstanceSimple, PluginMetadata } from "/src/
 import createPluginCrudOptions, { type PluginCrudContext } from "/src/views/sys/plugin/crud";
 import { usePluginDefineStore } from "/src/store/modules/plugin-define";
 
-const props = withDefaults(defineProps<{ value?: string | number | null; pluginType: string; pluginName?: string; placeholder?: string; dialogTitle?: string }>(), {
+const props = withDefaults(defineProps<{ modelValue?: string | number | null; pluginType: string; pluginName?: string; placeholder?: string; dialogTitle?: string }>(), {
   placeholder: "请选择",
   dialogTitle: "选择插件"
 });
-const emit = defineEmits<{ (event: "update:value", value: number | null): void }>();
+const emit = defineEmits<{ (event: "update:modelValue", value: number | null): void }>();
 const selectedRecord = ref<PluginInstanceSimple>();
 const pluginDefineStore = usePluginDefineStore();
 const pluginDefine = ref<PluginMetadata>();
@@ -52,21 +53,21 @@ const pluginDict = dict({
 });
 
 onMounted(async () => {
-  const value = props.value;
+  const value = props.modelValue;
   if (value == null || value === "") return;
   const nodes = await getPluginInstanceSimpleByIds([Number(value)]);
-  if (props.value === value) selectedRecord.value = nodes[0];
+  if (props.modelValue === value) selectedRecord.value = nodes[0];
 });
 
 watch(
-  () => props.value,
+  () => props.modelValue,
   async (value) => {
     if (value == null || value === "") {
       selectedRecord.value = undefined;
       return;
     }
     const nodes = await getPluginInstanceSimpleByIds([Number(value)]);
-    if (props.value === value) selectedRecord.value = nodes[0];
+    if (props.modelValue === value) selectedRecord.value = nodes[0];
   }
 );
 
@@ -80,13 +81,13 @@ async function onSelectedChange(rows: PluginInstance[] = []) {
   pluginDefine.value = rows[0] ? await pluginDefineStore.getPluginDefine(rows[0].pluginName) : undefined;
 }
 function onUpdateValue(value: number | null) {
-  emit("update:value", value);
+  emit("update:modelValue", value);
   if (value == null) selectedRecord.value = undefined;
 }
 function clear() {
   selectedRecord.value = undefined;
   pluginDefine.value = undefined;
-  emit("update:value", null);
+  emit("update:modelValue", null);
 }
 </script>
 

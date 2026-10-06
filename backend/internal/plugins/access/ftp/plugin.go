@@ -12,7 +12,20 @@ var metadata []byte
 type Provider struct{}
 
 func (Provider) Definition() (*plugin.Definition, error) {
-	return plugin.NewDefinition(metadata, func(map[string]any) (plugin.ActionExecutor, error) { return executor{}, nil })
+	return plugin.NewDefinition(metadata, &FtpAccess{})
 }
-type executor struct{}
-func (executor) ExecuteAction(_ context.Context, action string, _ map[string]any) (any, error) { if action == "onTest" { return map[string]any{"ok": true}, nil }; return nil, plugin.ErrActionNotFound }
+
+type FtpAccess struct {
+	PluginContext *plugin.PluginContext
+	Host          string
+	Port          int
+	Username      string
+	Password      string
+}
+
+func (FtpAccess) ExecuteAction(_ context.Context, action string, _ map[string]any) (any, error) {
+	if action == "onTest" {
+		return map[string]any{"ok": true}, nil
+	}
+	return nil, plugin.NewActionNotFoundError()
+}

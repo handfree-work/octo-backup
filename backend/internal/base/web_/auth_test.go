@@ -22,8 +22,7 @@ func TestNewConfigDefaultsTokenTTLToSevenDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
-	if claims.UserID != 1 || claims.Role != RoleRead {
+	if claims.UserId != 1 || claims.Role != RoleRead {
 		t.Fatalf("claims = %#v, want user 1 with read role", claims)
 	}
 }
-

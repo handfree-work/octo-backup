@@ -225,7 +225,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "用户 ID",
+                        "description": "用户 Id",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -280,7 +280,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "用户 ID",
+                        "description": "用户 Id",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -341,7 +341,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "用户 ID",
+                        "description": "用户 Id",
                         "name": "id",
                         "in": "path",
                         "required": true

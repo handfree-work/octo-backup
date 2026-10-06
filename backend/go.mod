@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/alibabacloud-go/tea v1.5.3
+	github.com/dsnet/compress v0.0.1
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/fiber/v3 v3.4.0
 	github.com/gogf/gf/v2 v2.10.2

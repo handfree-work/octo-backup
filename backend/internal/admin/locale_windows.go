@@ -16,4 +16,3 @@ func platformLocale() string {
 	}
 	return syscall.UTF16ToString(buffer)
 }
-

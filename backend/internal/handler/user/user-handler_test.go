@@ -64,7 +64,7 @@ func TestUserCRUD(t *testing.T) {
 	if _, exists := created.Data["password"]; exists {
 		t.Fatal("created response must not contain password")
 	}
-	userID := int64(created.Data["id"].(float64))
+	userId := int64(created.Data["id"].(float64))
 
 	list := doJSONRequest(t, app, http.MethodPost, "/api/user/list", map[string]any{}, token)
 	if list.Code != 0 {
@@ -75,12 +75,12 @@ func TestUserCRUD(t *testing.T) {
 		t.Fatalf("list items = %#v, want two users", list.Data["items"])
 	}
 
-	found := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userID), nil, token)
+	found := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userId), nil, token)
 	if found.Code != 0 {
 		t.Fatalf("get business code = %d, want 0", found.Code)
 	}
 
-	updated := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+fmt.Sprint(userID), map[string]string{
+	updated := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+fmt.Sprint(userId), map[string]string{
 		"nickName": "Alice Updated",
 	}, token)
 	if updated.Code != 0 {
@@ -90,12 +90,12 @@ func TestUserCRUD(t *testing.T) {
 		t.Fatalf("updated nickname = %#v, want Alice Updated", updated.Data["nickName"])
 	}
 
-	deleted := doJSONRequest(t, app, http.MethodPost, "/api/user/delete?id="+fmt.Sprint(userID), nil, token)
+	deleted := doJSONRequest(t, app, http.MethodPost, "/api/user/delete?id="+fmt.Sprint(userId), nil, token)
 	if deleted.Code != 0 {
 		t.Fatalf("delete business code = %d, want 0", deleted.Code)
 	}
 
-	notFound := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userID), nil, token)
+	notFound := doJSONRequest(t, app, http.MethodPost, "/api/user/info?id="+fmt.Sprint(userId), nil, token)
 	if notFound.Code == 0 {
 		t.Fatalf("get deleted user response = %#v, want business error", notFound)
 	}

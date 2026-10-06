@@ -43,8 +43,8 @@ func TestSysSettingSchemaAndPersistence(t *testing.T) {
 	if err := database.Create(setting).Error; err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if setting.ID == 0 {
-		t.Fatal("created setting must have an ID")
+	if setting.Id == 0 {
+		t.Fatal("created setting must have an Id")
 	}
 	var found models.SysSetting
 	if err := database.Where("key = ?", "instance").First(&found).Error; err != nil {

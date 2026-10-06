@@ -124,19 +124,19 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if writer.Code != 0 || writer.Data["role"] != "write" {
 		t.Fatalf("writer creation response = %#v, want created write user", writer)
 	}
-	writerID := int64(writer.Data["id"].(float64))
+	writerId := int64(writer.Data["id"].(float64))
 	writerLogin := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
 		"username": "writer",
 		"password": "secret",
 	})
 	writerToken := writerLogin.Data["token"].(string)
-	writerUpdate := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerID, 10), map[string]string{
+	writerUpdate := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerId, 10), map[string]string{
 		"nickName": "updated by writer",
 	}, writerToken)
 	if writerUpdate.Code != 0 {
 		t.Fatalf("writer update business code = %d, want 0", writerUpdate.Code)
 	}
-	roleEscalation := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerID, 10), map[string]string{
+	roleEscalation := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(writerId, 10), map[string]string{
 		"role": "admin",
 	}, writerToken)
 	if roleEscalation.HTTPStatus != http.StatusOK || roleEscalation.Code == 0 {
@@ -150,7 +150,7 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if second.Code != 0 || second.Data["role"] != "read" {
 		t.Fatalf("second registered response = %#v, want created read user", second)
 	}
-	readerID := int64(second.Data["id"].(float64))
+	readerId := int64(second.Data["id"].(float64))
 	readerLogin := doJSONRequest(t, app, http.MethodPost, "/api/auth/login", map[string]string{
 		"username": "reader",
 		"password": "secret",
@@ -159,7 +159,7 @@ func TestRegisterLoginAndDeclaredPermissions(t *testing.T) {
 	if !ok || readerToken == "" {
 		t.Fatalf("reader token = %#v, want non-empty string", readerLogin.Data["token"])
 	}
-	forbidden := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(readerID, 10), map[string]string{
+	forbidden := doJSONRequest(t, app, http.MethodPost, "/api/user/update?id="+strconv.FormatInt(readerId, 10), map[string]string{
 		"nickName": "blocked",
 	}, readerToken)
 	if forbidden.HTTPStatus != http.StatusOK || forbidden.Code == 0 {

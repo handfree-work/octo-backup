@@ -56,7 +56,7 @@ func StreamRequest(in *Request, stream func(data *SseMessage) error) error {
 		bodyStr := string(body)
 		log_.Error("请求失败", bodyStr)
 		message := "接口请求失败"
-		return error_.NewTextError(message)
+		return error_.NewTextError("%s", message)
 	}
 	// 处理 HTTP 响应
 	reader := bufio.NewReader(resp.Body)
@@ -107,7 +107,7 @@ func parseSSE(line string) SseMessage {
 	case line == "\n":
 		return sse
 	case line[:3] == "id:":
-		sse.ID = line[4 : len(line)-1]
+		sse.Id = line[4 : len(line)-1]
 	case line[:5] == "data:":
 		sse.Data = line[6 : len(line)-1]
 	case line[:6] == "event:":
@@ -120,7 +120,7 @@ type SseMessage struct {
 	Lines []string
 	Event string // 事件名称
 	Data  string // 数据内容
-	ID    string // 消息 ID
+	Id    string // 消息 Id
 }
 
 func (sse *SseMessage) Merge(other SseMessage) {
@@ -130,13 +130,13 @@ func (sse *SseMessage) Merge(other SseMessage) {
 	if other.Data != "" {
 		sse.Data = sse.Data + other.Data
 	}
-	if other.ID != "" {
-		sse.ID = other.ID
+	if other.Id != "" {
+		sse.Id = other.Id
 	}
 }
 
 func (sse *SseMessage) IsEmpty() bool {
-	if sse.Event == "" && sse.Data == "" && sse.ID == "" {
+	if sse.Event == "" && sse.Data == "" && sse.Id == "" {
 		return true
 	}
 	return false

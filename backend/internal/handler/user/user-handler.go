@@ -6,7 +6,7 @@ import (
 	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/base/error_/code_"
 	"handfree-work/octo-backup/internal/base/web_"
-	logic "handfree-work/octo-backup/internal/service"
+	logic "handfree-work/octo-backup/internal/modules/user"
 	"handfree-work/octo-backup/internal/svc"
 
 	"github.com/gofiber/fiber/v3"
@@ -68,7 +68,7 @@ func listUsers(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UserPageQuery)
 // @Tags 用户
 // @Produce json
 // @Security bearerAuth
-// @Param id path int true "用户 ID"
+// @Param id path int true "用户 Id"
 // @Success 200 {object} UserResponse
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
@@ -77,9 +77,9 @@ func listUsers(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UserPageQuery)
 // @Router /api/users/{id}/detail [post]
 func getUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 	return func(c fiber.Ctx) (any, error) {
-		id, err := parseUserID(c)
+		id, err := parseUserId(c)
 		if err != nil {
-			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 无效")
 		}
 		return logic.NewUserService(c.Context(), svcCtx).Get(id)
 	}
@@ -92,7 +92,7 @@ func getUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 // @Accept json
 // @Produce json
 // @Security bearerAuth
-// @Param id path int true "用户 ID"
+// @Param id path int true "用户 Id"
 // @Param request body logic.UpdateUserInput true "更新信息"
 // @Success 200 {object} UserResponse
 // @Failure 400 {object} ErrorResponse
@@ -102,15 +102,15 @@ func getUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 // @Router /api/users/{id}/update [post]
 func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInput) (any, error) {
 	return func(c fiber.Ctx, input *logic.UpdateUserInput) (any, error) {
-		id, err := parseUserID(c)
+		id, err := parseUserId(c)
 		if err != nil {
-			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 无效")
 		}
 		claims, ok := web_.ClaimsFromContext(c)
 		if !ok {
 			return nil, error_.NewCodeTextError(code_.AuthError, "未登录或登录已过期")
 		}
-		if claims.Role != web_.RoleAdmin && claims.UserID != id {
+		if claims.Role != web_.RoleAdmin && claims.UserId != id {
 			return nil, error_.NewCodeTextError(code_.PermissionError, "没有访问权限")
 		}
 		if claims.Role != web_.RoleAdmin && input.Role != nil {
@@ -126,7 +126,7 @@ func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInp
 // @Tags 用户
 // @Produce json
 // @Security bearerAuth
-// @Param id path int true "用户 ID"
+// @Param id path int true "用户 Id"
 // @Success 204
 // @Failure 400 {object} ErrorResponse
 // @Failure 401 {object} ErrorResponse
@@ -135,9 +135,9 @@ func updateUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *logic.UpdateUserInp
 // @Router /api/users/{id}/delete [post]
 func deleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx) (any, error) {
 	return func(c fiber.Ctx) (any, error) {
-		id, err := parseUserID(c)
+		id, err := parseUserId(c)
 		if err != nil {
-			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 无效")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 无效")
 		}
 		if err := logic.NewUserService(c.Context(), svcCtx).Delete(id); err != nil {
 			return nil, err
@@ -153,7 +153,7 @@ type batchDeleteInput struct {
 func batchDeleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *batchDeleteInput) (any, error) {
 	return func(c fiber.Ctx, input *batchDeleteInput) (any, error) {
 		if len(input.IDs) == 0 {
-			return nil, error_.NewCodeTextError(code_.ParamError, "用户 ID 不能为空")
+			return nil, error_.NewCodeTextError(code_.ParamError, "用户 Id 不能为空")
 		}
 		service := logic.NewUserService(c.Context(), svcCtx)
 		for _, id := range input.IDs {
@@ -165,7 +165,7 @@ func batchDeleteUser(svcCtx *svc.ServiceContext) func(fiber.Ctx, *batchDeleteInp
 	}
 }
 
-func parseUserID(c fiber.Ctx) (int64, error) {
+func parseUserId(c fiber.Ctx) (int64, error) {
 	return strconv.ParseInt(c.Query("id"), 10, 64)
 }
 

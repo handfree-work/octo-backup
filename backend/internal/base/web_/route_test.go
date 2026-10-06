@@ -32,4 +32,3 @@ func TestRegisterRoutesPermission(t *testing.T) {
 		t.Fatalf("POST /admin status = %d, want %d", protected.StatusCode, http.StatusOK)
 	}
 }
-

@@ -7,3 +7,6 @@ auth:
 log:
   directory: "./logs"
   level: "info"
+
+restic:
+  version: "0.19.1"

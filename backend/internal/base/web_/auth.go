@@ -2,7 +2,7 @@ package web_
 
 import (
 	"errors"
-	"fmt"
+	"handfree-work/octo-backup/internal/base/error_"
 	"strings"
 	"time"
 
@@ -30,7 +30,7 @@ type Config struct {
 }
 
 type Claims struct {
-	UserID   int64  `json:"uid"`
+	UserId   int64  `json:"uid"`
 	Username string `json:"username"`
 	Role     string `json:"role"`
 	jwt.RegisteredClaims
@@ -38,22 +38,22 @@ type Claims struct {
 
 func NewConfig(secret, ttl string) (Config, error) {
 	if strings.TrimSpace(secret) == "" {
-		return Config{}, fmt.Errorf("JWT 密钥不能为空")
+		return Config{}, error_.NewTextError("JWT 密钥不能为空")
 	}
 	duration := 7 * 24 * time.Hour
 	if strings.TrimSpace(ttl) != "" {
 		parsed, err := time.ParseDuration(ttl)
 		if err != nil || parsed <= 0 {
-			return Config{}, fmt.Errorf("JWT 有效期无效")
+			return Config{}, error_.NewTextError("JWT 有效期无效")
 		}
 		duration = parsed
 	}
 	return Config{Secret: secret, TokenTTL: duration}, nil
 }
 
-func (c Config) Issue(userID int64, username, role string) (string, time.Time, error) {
+func (c Config) Issue(userId int64, username, role string) (string, time.Time, error) {
 	if strings.TrimSpace(c.Secret) == "" {
-		return "", time.Time{}, fmt.Errorf("JWT 密钥不能为空")
+		return "", time.Time{}, error_.NewTextError("JWT 密钥不能为空")
 	}
 	ttl := c.TokenTTL
 	if ttl <= 0 {
@@ -61,7 +61,7 @@ func (c Config) Issue(userID int64, username, role string) (string, time.Time, e
 	}
 	expiresAt := time.Now().Add(ttl)
 	claims := Claims{
-		UserID:   userID,
+		UserId:   userId,
 		Username: username,
 		Role:     role,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -72,7 +72,7 @@ func (c Config) Issue(userID int64, username, role string) (string, time.Time, e
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signed, err := token.SignedString([]byte(c.Secret))
 	if err != nil {
-		return "", time.Time{}, fmt.Errorf("签发 JWT: %w", err)
+		return "", time.Time{}, error_.NewWrapError("签发 JWT", err)
 	}
 	return signed, expiresAt, nil
 }
@@ -140,4 +140,3 @@ func bearerToken(header string) string {
 	}
 	return parts[1]
 }
-

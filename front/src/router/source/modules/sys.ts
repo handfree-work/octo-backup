@@ -37,6 +37,7 @@ export const sysResources = [
         path: "/sys/repository",
         component: "/sys/repository/index.vue"
       },
+      { title: "仓库详情", name: "repository-detail", meta: { hideInMenu: true, permission: "read" }, path: "/sys/repository/:id", component: "/sys/repository/detail.vue" },
       {
         title: "备份来源",
         name: "source",
@@ -57,6 +58,27 @@ export const sysResources = [
         meta: { icon: "ion:git-network-outline", permission: "read" },
         path: "/sys/plan/flow",
         component: "/sys/plan/flow/index.vue"
+      },
+      {
+        title: "备份日志",
+        name: "plan-runs",
+        meta: { icon: "ion:document-text-outline", permission: "read" },
+        path: "/sys/plan/runs",
+        component: "/sys/plan/runs/index.vue"
+      },
+      {
+        title: "审计日志",
+        name: "audit",
+        meta: { icon: "ion:list-outline", permission: "read" },
+        path: "/sys/audit",
+        component: "/sys/audit/index.vue"
+      },
+      {
+        title: "已备份文件",
+        name: "repository-files",
+        meta: { icon: "ion:folder-open-outline", permission: "read" },
+        path: "/sys/repository/files",
+        component: "/sys/repository/files/index.vue"
       }
     ]
   }

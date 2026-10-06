@@ -8,6 +8,7 @@ import (
 	"io"
 	"strings"
 
+	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/models"
 
 	"gorm.io/gorm"
@@ -27,16 +28,16 @@ func ResetPassword(db *gorm.DB, username, password string) error {
 	var user models.User
 	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return fmt.Errorf("%w: %s", ErrUserNotFound, username)
+			return error_.NewWrapError(fmt.Sprintf("用户不存在: %s", username), ErrUserNotFound)
 		}
-		return fmt.Errorf("查询用户: %w", err)
+		return error_.NewWrapError("查询用户", err)
 	}
 	digest := sha256.Sum256([]byte(password))
 	if err := user.EncryptPassword(hex.EncodeToString(digest[:])); err != nil {
-		return fmt.Errorf("加密密码: %w", err)
+		return error_.NewWrapError("加密密码", err)
 	}
 	if err := db.Model(&models.User{}).Where("id = ?", user.Id).Update("password", user.Password).Error; err != nil {
-		return fmt.Errorf("保存密码: %w", err)
+		return error_.NewWrapError("保存密码", err)
 	}
 	return nil
 }
@@ -45,4 +46,3 @@ func ResetPassword(db *gorm.DB, username, password string) error {
 func Run(db *gorm.DB, input io.Reader, output io.Writer) error {
 	return runTUI(db, input, output)
 }
-

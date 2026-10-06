@@ -1,14 +1,10 @@
 package access
 
 import (
-	"fmt"
+	"handfree-work/octo-backup/internal/base/error_"
 	"handfree-work/octo-backup/internal/modules/plugin"
-	"handfree-work/octo-backup/internal/plugins/access/aliyun"
 	"handfree-work/octo-backup/internal/plugins/access/ftp"
-	"handfree-work/octo-backup/internal/plugins/access/minio"
-	"handfree-work/octo-backup/internal/plugins/access/s3"
 	"handfree-work/octo-backup/internal/plugins/access/ssh"
-	"handfree-work/octo-backup/internal/plugins/access/tencent"
 )
 
 type provider interface {
@@ -16,11 +12,11 @@ type provider interface {
 }
 
 func Register(r *plugin.Registry) error {
-	providers := []provider{ssh.Provider{}, ftp.Provider{}, aliyun.Provider{}, tencent.Provider{}, s3.Provider{}, minio.Provider{}}
+	providers := []provider{ssh.Provider{}, ftp.Provider{}}
 	for _, p := range providers {
 		d, err := p.Definition()
 		if err != nil {
-			return fmt.Errorf("加载授权插件: %w", err)
+			return error_.NewWrapError("加载授权插件", err)
 		}
 		if err := r.Register(d); err != nil {
 			return err

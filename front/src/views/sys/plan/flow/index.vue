@@ -8,9 +8,9 @@
     </template>
     <div class="canvas-shell">
       <div class="zone-bar">
-        <div><b>来源</b><a-button type="link" size="small" @click="goTo('source')">＋ 添加</a-button></div>
-        <div><b>计划</b><a-button type="link" size="small" @click="openPlanAdd">＋ 添加</a-button></div>
-        <div><b>仓库</b><a-button type="link" size="small" @click="goTo('repository')">＋ 添加</a-button></div>
+        <div><b>来源</b></div>
+        <div><b>计划</b></div>
+        <div><b>仓库</b></div>
       </div>
       <VueFlow v-model:nodes="nodes" v-model:edges="edges" :node-types="nodeTypes" class="flow-canvas">
         <Background pattern-color="#dbe4f0" :gap="24" /><Controls position="bottom-left" /><MiniMap position="bottom-right" />
@@ -31,8 +31,10 @@ import { MiniMap } from "@vue-flow/minimap";
 import PlanFlowNode from "./PlanFlowNode.vue";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
-import { getBackupPlanPage, type BackupPlan } from "../api";
+import { getBackupPlanPage, getBackupRunInfo, type BackupPlan, runBackupPlan } from "../api";
 import { getPluginInstancePage, type PluginInstanceSimple } from "../../plugin/plugin-api";
+import { getCronNextTimes } from "/src/components/cron-editor/utils";
+import { Modal } from "ant-design-vue";
 const plans = ref<BackupPlan[]>([]);
 const sources = ref<PluginInstanceSimple[]>([]);
 const repositories = ref<PluginInstanceSimple[]>([]);
@@ -40,6 +42,27 @@ const nodes = ref<Node[]>([]);
 const edges = ref<Edge[]>([]);
 const { setCenter } = useVueFlow();
 const nodeTypes = { flow: PlanFlowNode };
+async function runPlan(planId: number) {
+  const plan = plans.value.find((item) => item.id === planId);
+  Modal.confirm({
+    title: "确认执行备份计划",
+    content: `确定要立即执行${plan ? `“${plan.name}”` : "该备份计划"}吗？`,
+    okText: "执行",
+    cancelText: "取消",
+    onOk: async () => {
+      const runResult = (await runBackupPlan(planId)) as { logId: number };
+      let runInfo = (await getBackupRunInfo(runResult.logId)) as { status: string; progress: number; stage: string; error?: string };
+      while (runInfo.status === "queued" || runInfo.status === "running") {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        runInfo = (await getBackupRunInfo(runResult.logId)) as { status: string; progress: number; stage: string; error?: string };
+      }
+      if (runInfo.status === "failed") {
+        Modal.error({ title: "备份失败", content: runInfo.error || runInfo.stage });
+      }
+      await loadFlow();
+    }
+  });
+}
 
 function makeGraph() {
   const graphNodes: Node[] = [];
@@ -47,6 +70,13 @@ function makeGraph() {
   const centerPositionY = 330;
   const rowSpacing = 100;
   const getRowPositionY = (rowIndex: number, rowCount: number) => centerPositionY - ((rowCount - 1) * rowSpacing) / 2 + rowIndex * rowSpacing;
+  const repositoryGap = 18;
+  const repositoryHeights = repositories.value.map((repository) => {
+    const pathCount = plans.value.filter((plan) => plan.repositoryId === Number(repository.id)).length;
+    return 50 + (5 + pathCount * 18);
+  });
+  const repositoryTotalHeight = repositoryHeights.reduce((totalHeight, nodeHeight) => totalHeight + nodeHeight, 0) + Math.max(0, repositories.value.length - 1) * repositoryGap;
+  let repositoryPositionY = centerPositionY - repositoryTotalHeight / 2;
   sources.value.forEach((source) => {
     const sourceIndex = sources.value.indexOf(source);
     graphNodes.push({
@@ -59,11 +89,19 @@ function makeGraph() {
   });
   repositories.value.forEach((repository) => {
     const repositoryIndex = repositories.value.indexOf(repository);
+    const repositoryHeight = repositoryHeights[repositoryIndex];
+    const repositoryNodePositionY = repositoryPositionY;
+    repositoryPositionY += repositoryHeight + repositoryGap;
     graphNodes.push({
       id: `repository-${repository.id}`,
       type: "flow",
-      position: { x: 790, y: getRowPositionY(repositoryIndex, repositories.value.length) },
-      data: { title: repository.name, meta: repository.pluginName, kind: "repository" },
+      position: { x: 790, y: repositoryNodePositionY },
+      data: {
+        title: repository.name,
+        meta: repository.pluginName,
+        kind: "repository",
+        subPaths: plans.value.filter((plan) => plan.repositoryId === Number(repository.id)).map((plan) => ({ id: plan.id, path: plan.repoTag || "未设置标签" }))
+      },
       class: "flow-repository"
     });
   });
@@ -84,15 +122,27 @@ function makeGraph() {
       position: { x: 410, y: planPositionY },
       data: {
         title: plan.name,
-        meta: `${plan.schedule} · ${plan.repoSubPath || "仓库根目录"}`,
+        meta: "下次执行：" + (getCronNextTimes(plan.schedule, 1)[0] || "无"),
+        cron: plan.schedule,
         status: plan.enabled ? "已启用" : "已禁用",
-        kind: "plan"
+        kind: "plan",
+        onRun: () => runPlan(plan.id)
       },
       class: planClass
     });
     graphEdges.push(
       { id: `source-plan-${plan.id}`, source: sourceNodeId, sourceHandle: "right", target: planNodeId, targetHandle: "left", type: "bezier", animated: plan.enabled, class: edgeClass, markerEnd: "arrowclosed" },
-      { id: `plan-repository-${plan.id}`, source: planNodeId, sourceHandle: "right", target: repositoryNodeId, targetHandle: "left", type: "bezier", animated: plan.enabled, class: edgeClass, markerEnd: "arrowclosed" }
+      {
+        id: `plan-repository-${plan.id}`,
+        source: planNodeId,
+        sourceHandle: "right",
+        target: repositoryNodeId,
+        targetHandle: `path-${plan.id}`,
+        type: "bezier",
+        animated: plan.enabled,
+        class: edgeClass,
+        markerEnd: "arrowclosed"
+      }
     );
   });
   nodes.value = graphNodes.filter((node, nodeIndex, allNodes) => allNodes.findIndex((candidateNode) => candidateNode.id === node.id) === nodeIndex);
@@ -111,12 +161,7 @@ function makeGraph() {
     });
   });
 }
-function goTo(name: string) {
-  window.location.hash = `#/sys/${name}`;
-}
-function openPlanAdd() {
-  window.location.hash = "#/sys/plan";
-}
+
 async function loadFlow() {
   const [planPage, sourcePage, repositoryPage] = await Promise.all([
     getBackupPlanPage({ offset: 0, limit: 1000 }),
@@ -213,3 +258,4 @@ loadFlow();
   }
 }
 </style>
+

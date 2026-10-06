@@ -3,4 +3,3 @@
 package admin
 
 func platformLocale() string { return "" }
-

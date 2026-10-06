@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPathInput, normalizePathNodes, parsePathInput } from "/src/components/plugin-path-selector/helpers";
+import { formatPathInput, getDirectoryRequestPath, normalizePathNodes, parsePathInput, updatePathNodeChildren, updatePathNodeCounts } from "/src/components/plugin-path-selector/helpers";
 
 describe("plugin path selector helpers", () => {
   it("parses pasted paths into a unique array", () => {
@@ -8,6 +8,19 @@ describe("plugin path selector helpers", () => {
 
   it("formats array values for editing", () => {
     expect(formatPathInput(["/etc", "/var/www"])).toBe("/etc\n/var/www");
+  });
+
+  it("resolves a directory path for lazy loading", () => {
+    expect(getDirectoryRequestPath(" /var ", undefined)).toBe("/var");
+    expect(getDirectoryRequestPath(undefined, " /etc ")).toBe("/etc");
+    expect(getDirectoryRequestPath(undefined, undefined)).toBe("/");
+  });
+
+  it("writes lazy-loaded children back into the tree", () => {
+    const nodes = normalizePathNodes({ paths: [{ key: "/home", isLeaf: false }] });
+    expect(updatePathNodeChildren(nodes, "/home", [{ key: "/home/www", title: "/home/www", isLeaf: true }])).toBe(true);
+    expect(nodes[0].children?.[0].key).toBe("/home/www");
+    expect(nodes[0].isLeaf).toBe(false);
   });
 
   it("normalizes action directory results into tree nodes", () => {
@@ -22,5 +35,11 @@ describe("plugin path selector helpers", () => {
       { title: "/etc", key: "/etc", isLeaf: true },
       { title: "/var", key: "/var", isLeaf: false, children: [{ title: "/var/log", key: "/var/log", isLeaf: true }] }
     ]);
+  });
+
+  it("updates the expanded directory counts", () => {
+    const nodes = normalizePathNodes({ paths: [{ key: "/home", isLeaf: false }] });
+    expect(updatePathNodeCounts(nodes, "/home", { fileCount: 4, directoryCount: 2 })).toBe(true);
+    expect(nodes[0].title).toBe("/home（文件 4，子目录 2）");
   });
 });

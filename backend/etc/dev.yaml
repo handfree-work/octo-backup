@@ -10,3 +10,6 @@ auth:
 log:
   directory: "./logs"
   level: "debug"
+
+restic:
+  version: "0.19.1"

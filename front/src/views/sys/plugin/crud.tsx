@@ -41,9 +41,30 @@ export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginI
   const { metadata, pluginType } = context;
   const pluginDefineStore = usePluginDefineStore();
   const dynamicFieldKeys = new Set<string>();
+  const goRepository = (row: PluginInstance) => (window.location.hash = `#/sys/repository/${row.id}`);
   const columns: Record<string, any> = {
     id: { title: "ID", type: "text", form: { show: false }, column: { width: 80 } },
-    name: { title: "名称", type: "text", order: -11, search: { show: true }, form: { order: -11, rules: [{ required: true, message: "请输入名称" }] } },
+    name: {
+      title: "名称",
+      type: "text",
+      order: -11,
+      search: { show: true },
+      column: {
+        sorter: false,
+        conditionalRender: false,
+        cellRender: ({ row }: { row: PluginInstance }) => {
+          if (pluginType === "repository") {
+            return (
+              <a class="text-primary" onClick={() => goRepository(row)}>
+                {row.name}
+              </a>
+            );
+          }
+          return <span>{row.name}</span>;
+        }
+      },
+      form: { order: -11, rules: [{ required: true, message: "请输入名称" }] }
+    },
     pluginName: {
       title: "插件类型",
       type: "dict-select",
@@ -99,7 +120,8 @@ export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginI
         key,
         order: 10,
         ...field,
-        component
+        component,
+        form: field.helper ? { helper: field.helper } : undefined
       };
       if (field.options?.length && component.name === "a-select") {
         fieldColumn.form.component = { ...component, options: field.options };

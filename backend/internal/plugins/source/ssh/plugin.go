@@ -17,40 +17,34 @@ var metadata []byte
 type Provider struct{}
 
 func (Provider) Definition() (*plugin.Definition, error) {
-	return plugin.NewDefinition(metadata, func(config map[string]any) (plugin.ActionExecutor, error) {
-		return &executor{config: config}, nil
-	})
+	return plugin.NewDefinition(metadata, &SshSource{})
 }
 
-type executor struct {
-	config map[string]any
+type SshSource struct {
+	PluginContext *plugin.PluginContext
+	AccessId      int
+	Paths         []any
+	ExcludePaths  []any
 }
 
-func (e *executor) ExecuteAction(ctx context.Context, action string, params map[string]any) (any, error) {
-	form := make(map[string]any, len(e.config)+len(params))
-	for key, value := range e.config {
-		form[key] = value
-	}
-	for key, value := range params {
-		form[key] = value
-	}
+func (e *SshSource) ExecuteAction(ctx context.Context, action string, params map[string]any) (any, error) {
 	switch action {
 	case "onListPaths":
-		result, err := e.onListPaths(ctx, form)
+		result, err := e.onListPaths(ctx, params)
 		if err != nil {
-			return nil, error_.NewTextError(fmt.Sprintf("source.ssh.onListPaths: %v", err))
+			return nil, error_.NewWrapError("插件 source.ssh action onListPaths 执行失败", err)
 		}
 		return result, nil
 	default:
-		return nil, plugin.ErrActionNotFound
+		return nil, plugin.NewActionNotFoundError()
 	}
 }
 
 // onListPaths 根据完整插件表单读取 SSH 主机目录。
 // 目录遍历接入 SSH 执行器后，只需替换此方法，action 分发和表单参数保持不变。
-func (e *executor) onListPaths(ctx context.Context, form map[string]any) (any, error) {
-	if form["accessId"] == nil {
-		return nil, error_.NewTextError("SSH 授权 ID 不能为空")
+func (e *SshSource) onListPaths(ctx context.Context, form map[string]any) (any, error) {
+	if e.AccessId <= 0 {
+		return nil, error_.NewTextError("SSH 授权 Id 不能为空")
 	}
 	access, ok := form["access"].(map[string]any)
 	if !ok {
@@ -60,14 +54,33 @@ func (e *executor) onListPaths(ctx context.Context, form map[string]any) (any, e
 	if !ok {
 		return nil, error_.NewTextError("SSH 授权配置无效")
 	}
-	client := sshaccess.NewSshAccess(config)
+	definition, err := (sshaccess.Provider{}).Definition()
+	if err != nil {
+		return nil, error_.NewWrapError("加载 SSH 授权插件定义失败", err)
+	}
+	instance, err := definition.NewPluginInstance(config)
+	if err != nil {
+		return nil, error_.NewWrapError("创建 SSH 授权插件实例失败", err)
+	}
+	client := instance.(*sshaccess.SshAccess)
 	if err := client.Connect(ctx); err != nil {
 		return nil, err
 	}
 	defer client.Close()
-	paths, err := client.ListDirectories(strings.TrimSpace(fmt.Sprint(form["path"])))
+	remotePath := strings.TrimSpace(fmt.Sprint(form["path"]))
+	if remotePath == "<nil>" || remotePath == "" {
+		remotePath = strings.TrimSpace(fmt.Sprint(form["cursor"]))
+	}
+	if remotePath == "<nil>" || remotePath == "" {
+		remotePath = "/"
+	}
+	paths, err := client.ListDirectories(remotePath)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]any{"paths": paths}, nil
+	fileCount, directoryCount, err := client.CountDirectory(ctx, remotePath)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"paths": paths, "fileCount": fileCount, "directoryCount": directoryCount}, nil
 }

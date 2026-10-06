@@ -183,7 +183,7 @@ func (d *Dao[T]) FindPage(in *PageReq[T], more ...func(*gorm.DB)) (*[]T, error) 
 				return nil, error_.NewTextError("symbol或name为空")
 			}
 			if !slices.Contains(SafeSymbols, item.Symbol) {
-				return nil, error_.NewTextError("symbol不安全:" + item.Symbol)
+				return nil, error_.NewTextError("symbol不安全: %s", item.Symbol)
 			}
 
 			if item.StringValue != nil {

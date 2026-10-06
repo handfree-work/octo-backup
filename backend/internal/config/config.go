@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"handfree-work/octo-backup/internal/base/error_"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Auth     AuthConfig     `yaml:"auth"`
 	Log      LogConfig      `yaml:"log"`
+	Restic   ResticConfig   `yaml:"restic"`
 }
 
 type ServerConfig struct {
@@ -34,6 +36,10 @@ type AuthConfig struct {
 type LogConfig struct {
 	Directory string `yaml:"directory"`
 	Level     string `yaml:"level"`
+}
+
+type ResticConfig struct {
+	Version string `yaml:"version"`
 }
 
 // Load 先加载 dev.yaml 作为默认配置，再加载指定运行模式的配置覆盖同名字段。
@@ -60,10 +66,10 @@ func Load(configDir, mode string) (*Config, error) {
 func loadFile(path string, cfg *Config) error {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("读取配置文件 %s: %w", path, err)
+		return error_.NewWrapError(fmt.Sprintf("读取配置文件 %s", path), err)
 	}
 	if err := yaml.Unmarshal(content, cfg); err != nil {
-		return fmt.Errorf("解析配置文件 %s: %w", path, err)
+		return error_.NewWrapError(fmt.Sprintf("解析配置文件 %s", path), err)
 	}
 	return nil
 }

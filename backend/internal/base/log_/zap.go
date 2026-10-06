@@ -128,6 +128,9 @@ func HTTPMiddleware() fiber.Handler {
 			zap.Duration("duration", time.Since(startedAt)),
 		}
 		if err != nil {
+			if _, logged := err.(interface{ LoggedError() }); logged {
+				return err
+			}
 			Logger.Error("HTTP 请求失败", append(fields, zap.Error(err))...)
 			return err
 		}

@@ -83,7 +83,7 @@ func main() {
 		log_.Logger.Error("连接数据库失败", zap.Error(err))
 		return
 	}
-	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}); err != nil {
+	if err := db_.Migrate(database, &models.User{}, &models.SysSetting{}, &models.PluginInstance{}, &models.BackupPlan{}, &models.BackupLog{}, &models.AuditLog{}); err != nil {
 		log_.Logger.Error("初始化数据库失败", zap.Error(err))
 		return
 	}
@@ -107,7 +107,7 @@ func main() {
 		log_.Logger.Error("注册插件失败", zap.Error(err))
 		return
 	}
-	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig, Plugins: pluginRegistry})
+	handler.Register(app, &svc.ServiceContext{Db: database, Auth: authConfig, Plugins: pluginRegistry, Restic: cfg.Restic})
 	app.Get("/*", static.New("./static/public"))
 
 	log_.Logger.Info("OctoBackup 启动", zap.String("mode", cfg.Mode), zap.String("address", listenAddr))

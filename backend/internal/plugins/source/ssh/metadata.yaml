@@ -6,7 +6,6 @@ version: 1.0.0
 fields:
   - key: accessId
     title: SSH 授权 ID
-    type: number
     required: true
     component:
       name: access-selector
@@ -18,6 +17,13 @@ fields:
     component:
       name: plugin-path-selector
       placeholder: 选择目录或粘贴路径，每行一个
+    mergeScript: 'return { component: { instanceId: ctx.compute(({form}) => form.id), accessId: ctx.compute(({form}) => form.config?.accessId), action: "onListPaths" } }'
+  - key: excludePaths
+    title: 排除路径
+    type: array
+    component:
+      name: plugin-path-selector
+      placeholder: 选择要排除的目录或粘贴路径，每行一个
     mergeScript: 'return { component: { instanceId: ctx.compute(({form}) => form.id), accessId: ctx.compute(({form}) => form.config?.accessId), action: "onListPaths" } }'
 actions:
   - {name: onListPaths, title: 获取目录结构, permission: write}

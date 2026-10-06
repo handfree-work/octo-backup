@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/base64"
-	"fmt"
+	"handfree-work/octo-backup/internal/base/error_"
 	"io"
 	"strings"
 
@@ -37,15 +37,15 @@ func (c *Codec) Encrypt(value string) (string, error) {
 }
 func (c *Codec) Decrypt(value string) (string, error) {
 	if !strings.HasPrefix(value, "ENC[v1:") || !strings.HasSuffix(value, "]") {
-		return "", fmt.Errorf("密文格式无效")
+		return "", error_.NewTextError("密文格式无效")
 	}
 	raw, err := base64.RawStdEncoding.DecodeString(strings.TrimSuffix(strings.TrimPrefix(value, "ENC[v1:"), "]"))
 	if err != nil || len(raw) < c.aead.NonceSize() {
-		return "", fmt.Errorf("密文无效")
+		return "", error_.NewTextError("密文无效")
 	}
 	plain, err := c.aead.Open(nil, raw[:c.aead.NonceSize()], raw[c.aead.NonceSize():], nil)
 	if err != nil {
-		return "", fmt.Errorf("解密失败")
+		return "", error_.NewTextError("解密失败")
 	}
 	return string(plain), nil
 }
@@ -66,7 +66,7 @@ func (c *Codec) ProtectYAML(data []byte, fields FieldMetadata, configured map[st
 			configured[key] = true
 			text, ok := value.(string)
 			if !ok {
-				return nil, nil, fmt.Errorf("敏感字段必须为字符串: %s", key)
+				return nil, nil, error_.NewTextError("敏感字段必须为字符串: %s", key)
 			}
 			encrypted, err := c.Encrypt(text)
 			if err != nil {

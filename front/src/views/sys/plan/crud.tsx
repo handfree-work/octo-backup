@@ -32,10 +32,10 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
       },
       columns: {
         id: { title: "ID", type: "text", form: { show: false } },
-        name: { title: "名称", type: "text", search: { show: true }, form: { rules: [{ required: true, message: "请输入名称" }] } },
-        sourceId: { title: "备份来源", type: "dict-select", dict: instanceDict("source"), form: { rules: [{ required: true, message: "请选择备份来源" }] } },
-        repositoryId: { title: "存储仓库", type: "dict-select", dict: instanceDict("repository"), form: { rules: [{ required: true, message: "请选择存储仓库" }] } },
-        repoSubPath: { title: "仓库目录", type: "text", form: { component: { placeholder: "可选，留空使用仓库根目录" } } },
+        name: { title: "计划名称", type: "text", search: { show: true }, form: { helper: "备份计划名称", rules: [{ required: true, message: "请输入名称" }] } },
+        sourceId: { title: "备份来源", type: "dict-select", dict: instanceDict("source"), form: { helper: "备份数据来源", rules: [{ required: true, message: "请选择备份来源" }] } },
+        repositoryId: { title: "存储仓库", type: "dict-select", dict: instanceDict("repository"), form: { helper: "备份数据存储到哪个仓库", rules: [{ required: true, message: "请选择存储仓库" }] } },
+        repoTag: { title: "仓库标签", type: "text", form: { component: { placeholder: "可选，用于区分同一仓库中的备份" }, helper: "使用 Restic 标签区分备份计划" } },
         schedule: {
           title: "Cron 调度",
           type: "text",
@@ -49,7 +49,13 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
         },
         enabled: {
           title: "启用",
-          type: "switch"
+          type: "dict-switch",
+          dict: dict({
+            data: [
+              { value: true, label: "启用" },
+              { value: false, label: "禁用" }
+            ]
+          })
         },
         lastStatus: {
           title: "最近状态",
@@ -70,3 +76,4 @@ export default function (): CreateCrudOptionsRet<BackupPlan> {
     }
   };
 }
+
