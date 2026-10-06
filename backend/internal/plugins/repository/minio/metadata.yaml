@@ -1,8 +1,0 @@
-type: repository
-name: repository.minio
-title: MinIO 仓库
-description: MinIO Restic 仓库
-version: 1.0.0
-accessType: access.minio
-fields: [{key: path, title: Bucket/路径, type: string, required: true}, {key: accessId, title: 授权 ID, type: number, component: {name: access-selector}, mergeScript: 'return { component: { pluginName: ctx.compute(({form}) => form.config?.accessType) } }'}, {key: password, title: 仓库密码, type: password, encrypt: true}]
-actions: [{name: onBuild, title: 生成 Restic 配置, permission: read}]

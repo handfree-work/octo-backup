@@ -1,7 +1,0 @@
-type: notification
-name: notification.webhook
-title: Webhook 通知
-description: 通用 Webhook 通知
-version: 1.0.0
-fields: [{key: url, title: URL, type: string, required: true}, {key: secret, title: 密钥, type: password, encrypt: true}]
-actions: [{name: onSend, title: 发送通知, permission: write}]

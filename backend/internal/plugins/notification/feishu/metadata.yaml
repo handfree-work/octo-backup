@@ -1,7 +1,0 @@
-type: notification
-name: notification.feishu
-title: 飞书通知
-description: 飞书机器人通知
-version: 1.0.0
-fields: [{key: webhook, title: Webhook, type: string, required: true}, {key: secret, title: 签名密钥, type: password, encrypt: true}]
-actions: [{name: onSend, title: 发送通知, permission: write}]
