@@ -93,6 +93,20 @@ function clear() {
 
 <style lang="less">
 .plugin-selector {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+
+  :deep(.fs-table-select) {
+    width: 100%;
+  }
+
+  :deep(.fs-table-select__value) {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+  }
+
   .plugin-selector__placeholder {
     margin-right: 8px;
     color: #8c8c8c;

@@ -137,9 +137,9 @@ export default function ({ context, crudExpose }: CreateCrudOptionsProps<PluginI
         key,
         order: 99,
         component: {
-          name: "a-button",
+          name: "fs-button",
           type: "primary",
-          children: "测试连接",
+          text: "测试连接",
           on: {
             click: async () => {
               if (!form.id) return;
